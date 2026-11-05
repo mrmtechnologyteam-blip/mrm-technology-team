@@ -18,7 +18,6 @@ require_once __DIR__ . '/bootstrap.php';
 */
 
 if (!function_exists('e')) {
-
     function e(mixed $value): string
     {
         return htmlspecialchars(
@@ -36,12 +35,12 @@ if (!function_exists('e')) {
 */
 
 if (!function_exists('csrf_token')) {
-
     function csrf_token(): string
     {
         if (
             !isset($_SESSION['_csrf_token']) ||
-            !is_string($_SESSION['_csrf_token'])
+            !is_string($_SESSION['_csrf_token']) ||
+            $_SESSION['_csrf_token'] === ''
         ) {
             $_SESSION['_csrf_token'] = bin2hex(
                 random_bytes(32)
@@ -59,7 +58,6 @@ if (!function_exists('csrf_token')) {
 */
 
 if (!function_exists('csrf_field')) {
-
     function csrf_field(): string
     {
         return '<input type="hidden" name="_csrf_token" value="' .
@@ -70,26 +68,24 @@ if (!function_exists('csrf_field')) {
 
 /*
 |--------------------------------------------------------------------------
-| Verify CSRF Token
+| Verify Submitted CSRF Token
 |--------------------------------------------------------------------------
 */
 
-if (!function_exists('csrf_verify')) {
-
-    function csrf_verify(): bool
+if (!function_exists('verify_csrf_token')) {
+    function verify_csrf_token(string $submittedToken): bool
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        if (
+            session_status() !== PHP_SESSION_ACTIVE ||
+            $submittedToken === ''
+        ) {
             return false;
         }
-
-        $submittedToken = $_POST['_csrf_token'] ?? '';
 
         $sessionToken = $_SESSION['_csrf_token'] ?? '';
 
         if (
-            !is_string($submittedToken) ||
             !is_string($sessionToken) ||
-            $submittedToken === '' ||
             $sessionToken === ''
         ) {
             return false;
@@ -104,12 +100,36 @@ if (!function_exists('csrf_verify')) {
 
 /*
 |--------------------------------------------------------------------------
+| Legacy POST CSRF Verification
+|--------------------------------------------------------------------------
+*/
+
+if (!function_exists('csrf_verify')) {
+    function csrf_verify(): bool
+    {
+        if (
+            strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST'
+        ) {
+            return false;
+        }
+
+        $submittedToken = $_POST['_csrf_token'] ?? '';
+
+        if (!is_string($submittedToken)) {
+            return false;
+        }
+
+        return verify_csrf_token($submittedToken);
+    }
+}
+
+/*
+|--------------------------------------------------------------------------
 | Regenerate Session ID
 |--------------------------------------------------------------------------
 */
 
 if (!function_exists('regenerate_session')) {
-
     function regenerate_session(): void
     {
         if (session_status() !== PHP_SESSION_ACTIVE) {
@@ -118,7 +138,11 @@ if (!function_exists('regenerate_session')) {
             );
         }
 
-        session_regenerate_id(true);
+        if (!session_regenerate_id(true)) {
+            throw new RuntimeException(
+                'Failed to regenerate session ID.'
+            );
+        }
 
         $_SESSION['_csrf_token'] = bin2hex(
             random_bytes(32)
@@ -133,7 +157,6 @@ if (!function_exists('regenerate_session')) {
 */
 
 if (!function_exists('destroy_user_session')) {
-
     function destroy_user_session(): void
     {
         if (session_status() !== PHP_SESSION_ACTIVE) {
@@ -143,7 +166,6 @@ if (!function_exists('destroy_user_session')) {
         $_SESSION = [];
 
         if (ini_get('session.use_cookies')) {
-
             $params = session_get_cookie_params();
 
             setcookie(
@@ -155,7 +177,7 @@ if (!function_exists('destroy_user_session')) {
                     'domain' => $params['domain'],
                     'secure' => $params['secure'],
                     'httponly' => $params['httponly'],
-                    'samesite' => $params['samesite'] ?? 'Lax'
+                    'samesite' => $params['samesite'] ?? 'Lax',
                 ]
             );
         }
