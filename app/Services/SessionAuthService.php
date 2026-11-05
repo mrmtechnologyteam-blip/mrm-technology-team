@@ -15,15 +15,35 @@ final class SessionAuthService
         $this->auth = $auth;
     }
 
-    public function login(string $email, string $password): array
-    {
+    public function login(
+        string $email,
+        string $password
+    ): array {
         if (session_status() !== PHP_SESSION_ACTIVE) {
-            throw new RuntimeException('Session is not active.');
+            throw new RuntimeException(
+                'Session is not active.'
+            );
         }
 
-        $user = $this->auth->login($email, $password);
+        $user = $this->auth->login(
+            $email,
+            $password
+        );
 
-        session_regenerate_id(true);
+        if (function_exists('regenerate_session')) {
+            regenerate_session();
+        } else {
+            if (!session_regenerate_id(true)) {
+                throw new RuntimeException(
+                    'Failed to regenerate session ID.'
+                );
+
+            }
+
+            $_SESSION['_csrf_token'] = bin2hex(
+                random_bytes(32)
+            );
+        }
 
         $_SESSION['user_id'] = (int) $user['id'];
         $_SESSION['user_name'] = $user['full_name'];
@@ -59,8 +79,13 @@ final class SessionAuthService
 
     public function requireAuth(): void
     {
-        if (!$this->isAuthenticated() || !$this->currentUser()) {
-            throw new RuntimeException('Authentication required.');
+        if (
+            !$this->isAuthenticated() ||
+            !$this->currentUser()
+        ) {
+            throw new RuntimeException(
+                'Authentication required.'
+            );
         }
     }
 
@@ -69,7 +94,9 @@ final class SessionAuthService
         $this->requireAuth();
 
         if ($this->userRole() !== 'admin') {
-            throw new RuntimeException('Administrator access required.');
+            throw new RuntimeException(
+                'Administrator access required.'
+            );
         }
     }
 
@@ -89,10 +116,10 @@ final class SessionAuthService
             empty($user['email_verified_at'])
         ) {
             $this->logout();
+
             return null;
         }
 
-        // همگام‌سازی نقش و مشخصات با دیتابیس
         $_SESSION['user_name'] = $user['full_name'];
         $_SESSION['user_email'] = $user['email'];
         $_SESSION['user_role'] = $user['role'];
