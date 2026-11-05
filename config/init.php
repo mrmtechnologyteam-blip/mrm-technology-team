@@ -11,11 +11,38 @@ declare(strict_types=1);
 // Application bootstrap
 require_once __DIR__ . '/bootstrap.php';
 
-// Class autoloader
-require_once dirname(__DIR__) . '/app/autoload.php';
+/*
+|--------------------------------------------------------------------------
+| Composer Autoloader
+|--------------------------------------------------------------------------
+*/
 
-// Security helpers
+$composerAutoload = BASE_PATH . '/vendor/autoload.php';
+
+if (is_file($composerAutoload)) {
+    require_once $composerAutoload;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Application Class Autoloader
+|--------------------------------------------------------------------------
+*/
+
+require_once BASE_PATH . '/app/autoload.php';
+
+/*
+|--------------------------------------------------------------------------
+| Security Helpers
+|--------------------------------------------------------------------------
+*/
+
 require_once __DIR__ . '/security.php';
 
-// Database connection
+/*
+|--------------------------------------------------------------------------
+| Database Connection
+|--------------------------------------------------------------------------
+*/
+
 require_once __DIR__ . '/database.php';
