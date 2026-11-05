@@ -16,9 +16,13 @@ final class Kernel
 
     private MiddlewarePipeline $pipeline;
 
+    private ExceptionHandler $exceptionHandler;
+
     public function __construct(Router $router)
     {
         $this->router = $router;
+        $this->exceptionHandler = new ExceptionHandler();
+
         $this->pipeline = new MiddlewarePipeline();
 
         $this->pipeline->addMany([
@@ -37,40 +41,8 @@ final class Kernel
                 fn (Request $request): Response =>
                     $this->router->dispatch($request)
             );
-        } catch (ValidationException $exception) {
-            return Response::json([
-                'success' => false,
-                'error' => 'validation_error',
-                'message' => $exception->getMessage(),
-                'errors' => $exception->errors(),
-            ], 422);
-        } catch (HttpException $exception) {
-            return Response::json([
-                'success' => false,
-                'error' => 'http_error',
-                'message' => $exception->getMessage(),
-            ], $exception->statusCode(), $exception->headers());
         } catch (Throwable $exception) {
-            error_log(sprintf(
-                '[Kernel] %s in %s:%d',
-                $exception->getMessage(),
-                $exception->getFile(),
-                $exception->getLine()
-            ));
-
-            if (defined('APP_DEBUG') && APP_DEBUG === true) {
-                return Response::json([
-                    'success' => false,
-                    'error' => 'internal_server_error',
-                    'message' => $exception->getMessage(),
-                ], 500);
-            }
-
-            return Response::json([
-                'success' => false,
-                'error' => 'internal_server_error',
-                'message' => 'خطای داخلی سرور رخ داده است.',
-            ], 500);
+            return $this->exceptionHandler->handle($exception);
         }
     }
 
