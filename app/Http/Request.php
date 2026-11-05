@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http;
 
+use App\Http\BadRequestException;
+
 final class Request
 {
     private array $query;
@@ -46,26 +48,20 @@ final class Request
         return $this->method() === strtoupper($method);
     }
 
-    public function input(
-        string $key,
-        mixed $default = null
-    ): mixed {
+    public function input(string $key, mixed $default = null): mixed
+    {
         $data = $this->all();
 
         return $data[$key] ?? $default;
     }
 
-    public function query(
-        string $key,
-        mixed $default = null
-    ): mixed {
+    public function query(string $key, mixed $default = null): mixed
+    {
         return $this->query[$key] ?? $default;
     }
 
-    public function post(
-        string $key,
-        mixed $default = null
-    ): mixed {
+    public function post(string $key, mixed $default = null): mixed
+    {
         return $this->body[$key] ?? $default;
     }
 
@@ -110,7 +106,10 @@ final class Request
             ))
         );
 
-        return str_contains($contentType, 'application/json');
+        return preg_match(
+            '/^application\/(?:[\w.+-]+\+)?json(?:\s*;|$)/i',
+            $contentType
+        ) === 1;
     }
 
     public function jsonBody(): array
@@ -121,7 +120,13 @@ final class Request
 
         $raw = file_get_contents('php://input');
 
-        if ($raw === false || trim($raw) === '') {
+        if ($raw === false) {
+            throw new BadRequestException(
+                'Unable to read request body.'
+            );
+        }
+
+        if (trim($raw) === '') {
             $this->json = [];
             return $this->json;
         }
@@ -133,12 +138,19 @@ final class Request
                 512,
                 JSON_THROW_ON_ERROR
             );
-        } catch (\JsonException) {
-            $this->json = [];
-            return $this->json;
+        } catch (\JsonException $exception) {
+            throw new BadRequestException(
+                'Invalid JSON request body.'
+            );
         }
 
-        $this->json = is_array($decoded) ? $decoded : [];
+        if (!is_array($decoded)) {
+            throw new BadRequestException(
+                'JSON request body must be an object or array.'
+            );
+        }
+
+        $this->json = $decoded;
 
         return $this->json;
     }
@@ -149,7 +161,7 @@ final class Request
             str_replace('-', '_', $name)
         );
 
-        if ($name === 'Content-Type') {
+        if (strtolower($name) === 'content-type') {
             $key = 'CONTENT_TYPE';
         }
 
