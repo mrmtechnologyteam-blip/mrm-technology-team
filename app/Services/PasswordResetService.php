@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Models\PasswordResetToken;
 use App\Models\User;
 use PDO;
 use RuntimeException;
+use Throwable;
 
 final class PasswordResetService
 {
-    private PasswordResetToken $tokens;
+    private PDO $db;
     private User $users;
 
     public function __construct(PDO $db)
     {
-        $this->tokens = new PasswordResetToken($db);
+        $this->db = $db;
         $this->users = new User($db);
     }
 
@@ -34,10 +34,52 @@ final class PasswordResetService
             throw new RuntimeException('User not found.');
         }
 
-        return $this->tokens->createForUser(
-            $userId,
-            $validMinutes
+        $validMinutes = max(5, min($validMinutes, 1440));
+
+        $token = bin2hex(random_bytes(32));
+        $tokenHash = hash('sha256', $token);
+
+        $expiresAt = gmdate(
+            'Y-m-d H:i:s',
+            time() + ($validMinutes * 60)
         );
+
+        $this->db->beginTransaction();
+
+        try {
+            $delete = $this->db->prepare(
+                'DELETE FROM password_reset_tokens
+                 WHERE user_id = :user_id'
+            );
+
+            $delete->execute([
+                'user_id' => $userId,
+            ]);
+
+            $insert = $this->db->prepare(
+                'INSERT INTO password_reset_tokens
+                    (user_id, token_hash, expires_at)
+                 VALUES
+                    (:user_id, :token_hash, :expires_at)'
+            );
+
+            $insert->execute([
+                'user_id' => $userId,
+                'token_hash' => $tokenHash,
+                'expires_at' => $expiresAt,
+            ]);
+
+            $this->db->commit();
+
+            return $token;
+
+        } catch (Throwable $exception) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
+            throw $exception;
+        }
     }
 
     public function resetPassword(
@@ -61,31 +103,101 @@ final class PasswordResetService
             !preg_match('/[0-9]/', $newPassword)
         ) {
             throw new RuntimeException(
-                'Password must contain at least 8 characters, uppercase, lowercase and a number.'
+                'Password does not meet security requirements.'
             );
         }
 
-        $userId = $this->tokens->consume($token);
-
-        if ($userId === null) {
-            return false;
+        if ($this->db->inTransaction()) {
+            throw new RuntimeException(
+                'A database transaction is already active.'
+            );
         }
 
-        $user = $this->users->findById($userId);
+        $tokenHash = hash('sha256', $token);
 
-        if (!$user) {
-            throw new RuntimeException('User not found.');
+        $this->db->beginTransaction();
+
+        try {
+            $stmt = $this->db->prepare(
+                'SELECT id, user_id
+                 FROM password_reset_tokens
+                 WHERE token_hash = :token_hash
+                   AND used_at IS NULL
+                   AND expires_at > UTC_TIMESTAMP()
+                 LIMIT 1
+                 FOR UPDATE'
+            );
+
+            $stmt->execute([
+                'token_hash' => $tokenHash,
+            ]);
+
+            $record = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$record) {
+                $this->db->commit();
+                return false;
+            }
+
+            $userId = (int) $record['user_id'];
+
+            $user = $this->users->findById($userId);
+
+            if (!$user) {
+                throw new RuntimeException(
+                    'User associated with reset token was not found.'
+                );
+            }
+
+            if (!$this->users->updatePassword(
+                $userId,
+                $newPassword
+            )) {
+                throw new RuntimeException(
+                    'Password update failed.'
+                );
+            }
+
+            $updateToken = $this->db->prepare(
+                'UPDATE password_reset_tokens
+                 SET used_at = UTC_TIMESTAMP()
+                 WHERE id = :id
+                   AND used_at IS NULL'
+            );
+
+            $updateToken->execute([
+                'id' => (int) $record['id'],
+            ]);
+
+            if ($updateToken->rowCount() !== 1) {
+                throw new RuntimeException(
+                    'Reset token could not be consumed.'
+                );
+            }
+
+            $this->db->commit();
+
+            return true;
+
+        } catch (Throwable $exception) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
+            throw $exception;
         }
-
-        if (!$this->users->updatePassword($userId, $newPassword)) {
-            throw new RuntimeException('Password update failed.');
-        }
-
-        return true;
     }
 
     public function cleanup(): int
     {
-        return $this->tokens->deleteExpired();
+        $stmt = $this->db->prepare(
+            'DELETE FROM password_reset_tokens
+             WHERE expires_at <= UTC_TIMESTAMP()
+                OR used_at IS NOT NULL'
+        );
+
+        $stmt->execute();
+
+        return $stmt->rowCount();
     }
 }
