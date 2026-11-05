@@ -124,7 +124,7 @@ CREATE TABLE email_verification_tokens (
     used_at DATETIME NULL,
 
     FOREIGN KEY (user_id) REFERENCES users(id),
-    INDEX idx_token (token_hash)
+    UNIQUE KEY unique_token_hash (token_hash)
 ) ENGINE=InnoDB;
 
 -- 8. PASSWORD RESET
