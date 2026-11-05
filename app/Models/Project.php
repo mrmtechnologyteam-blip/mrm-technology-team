@@ -62,7 +62,6 @@ final class Project
         }
 
         try {
-            // Verify active customer account.
             $userStmt = $this->db->prepare(
                 "SELECT id
                  FROM users
@@ -81,7 +80,6 @@ final class Project
                 );
             }
 
-            // Verify active project category.
             $categoryStmt = $this->db->prepare(
                 "SELECT id
                  FROM project_categories
@@ -115,6 +113,12 @@ final class Project
             $deliveryDate = $data['expected_delivery_date'] ?? null;
 
             if ($deliveryDate !== null && $deliveryDate !== '') {
+                if (!is_string($deliveryDate)) {
+                    throw new InvalidArgumentException(
+                        'Invalid delivery date.'
+                    );
+                }
+
                 $date = \DateTimeImmutable::createFromFormat(
                     '!Y-m-d',
                     $deliveryDate
@@ -170,7 +174,6 @@ final class Project
 
             $projectId = (int) $this->db->lastInsertId();
 
-            // Record initial status.
             $history = $this->db->prepare(
                 "INSERT INTO project_status_history (
                     project_id,
@@ -212,6 +215,10 @@ final class Project
      */
     public function findById(int $id): ?array
     {
+        if ($id <= 0) {
+            return null;
+        }
+
         $stmt = $this->db->prepare(
             "SELECT
                 p.*,
@@ -235,6 +242,12 @@ final class Project
      */
     public function findByCode(string $code): ?array
     {
+        $code = trim($code);
+
+        if ($code === '') {
+            return null;
+        }
+
         $stmt = $this->db->prepare(
             "SELECT *
              FROM projects
@@ -351,6 +364,20 @@ final class Project
             );
         }
 
+        if ($note !== null) {
+            $note = trim($note);
+
+            if (mb_strlen($note, 'UTF-8') > 2000) {
+                throw new InvalidArgumentException(
+                    'Status note is too long.'
+                );
+            }
+
+            if ($note === '') {
+                $note = null;
+            }
+        }
+
         $ownsTransaction = !$this->db->inTransaction();
 
         if ($ownsTransaction) {
@@ -358,12 +385,14 @@ final class Project
         }
 
         try {
+            // Verify active and email-verified administrator.
             $admin = $this->db->prepare(
                 "SELECT id
                  FROM users
                  WHERE id = :id
                    AND role = 'admin'
                    AND account_status = 'active'
+                   AND email_verified_at IS NOT NULL
                  LIMIT 1"
             );
 
