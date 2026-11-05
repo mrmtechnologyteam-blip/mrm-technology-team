@@ -13,8 +13,12 @@ $email = is_array($pending)
     : '';
 
 $message = $_SESSION['flash_message'] ?? null;
+$errors = $_SESSION['errors'] ?? [];
 
-unset($_SESSION['flash_message']);
+unset(
+    $_SESSION['flash_message'],
+    $_SESSION['errors']
+);
 
 $escape = static function (mixed $value): string {
     return htmlspecialchars(
@@ -28,6 +32,10 @@ $emailAvailable = filter_var(
     $email,
     FILTER_VALIDATE_EMAIL
 ) !== false;
+
+if (!is_array($errors)) {
+    $errors = [];
+}
 ?>
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -52,6 +60,7 @@ $emailAvailable = filter_var(
             align-items: center;
             justify-content: center;
             padding: 20px;
+            background: #05000D;
         }
 
         .verification-container {
@@ -89,6 +98,7 @@ $emailAvailable = filter_var(
         h1 {
             font-size: 25px;
             margin-bottom: 15px;
+            color: #ffffff;
         }
 
         .description {
@@ -117,6 +127,7 @@ $emailAvailable = filter_var(
             color: #ffd28a;
             line-height: 2;
             font-size: 13px;
+            text-align: right;
         }
 
         .success-message {
@@ -124,8 +135,25 @@ $emailAvailable = filter_var(
             margin-bottom: 18px;
             border-radius: 9px;
             background: rgba(60, 200, 130, .10);
+            border: 1px solid rgba(60, 200, 130, .25);
             color: #91e6b7;
             line-height: 1.8;
+        }
+
+        .error-message {
+            padding: 12px 15px;
+            margin-bottom: 18px;
+            border-radius: 9px;
+            background: rgba(255, 70, 90, .10);
+            border: 1px solid rgba(255, 70, 90, .30);
+            color: #ff9ca8;
+            line-height: 1.9;
+            text-align: right;
+        }
+
+        .error-message ul {
+            margin: 0;
+            padding-right: 20px;
         }
 
         .back-link {
@@ -163,7 +191,7 @@ $emailAvailable = filter_var(
         ✉
     </div>
 
-    <h1>حساب کاربری شما ایجاد شد</h1>
+    <h1>تأیید آدرس ایمیل</h1>
 
     <?php if (is_string($message) && $message !== ''): ?>
         <div class="success-message">
@@ -171,8 +199,21 @@ $emailAvailable = filter_var(
         </div>
     <?php endif; ?>
 
+    <?php if (!empty($errors)): ?>
+        <div class="error-message">
+            <ul>
+                <?php foreach ($errors as $error): ?>
+                    <?php if (is_string($error) && $error !== ''): ?>
+                        <li><?= $escape($error) ?></li>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+    <?php endif; ?>
+
     <p class="description">
-        برای فعال‌سازی حساب کاربری، باید آدرس ایمیل خود را تأیید کنید.
+        حساب کاربری شما ایجاد شده است.
+        برای فعال‌سازی حساب، باید آدرس ایمیل خود را تأیید کنید.
     </p>
 
     <?php if ($emailAvailable): ?>
@@ -191,11 +232,11 @@ $emailAvailable = filter_var(
     <?php endif; ?>
 
     <div class="notice">
-        <strong>وضعیت سامانه تأیید ایمیل</strong>
+        <strong>وضعیت سامانه ارسال ایمیل</strong>
         <br>
-        سیستم ارسال ایمیل هنوز به سرور ایمیل متصل نشده است.
-        بنابراین در حال حاضر ایمیل تأیید برای شما ارسال نمی‌شود.
-        پس از تکمیل تنظیمات ایمیل، امکان فعال‌سازی حساب فراهم خواهد شد.
+        اتصال به سرور ایمیل هنوز تنظیم نشده است.
+        بنابراین در حال حاضر ایمیل تأیید به آدرس بالا ارسال نمی‌شود.
+        پس از راه‌اندازی سرویس ایمیل، لینک تأیید به‌صورت خودکار ارسال خواهد شد.
     </div>
 
     <a href="/" class="back-link">
