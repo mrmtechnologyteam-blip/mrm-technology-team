@@ -6,6 +6,7 @@ use App\Controllers\AuthController;
 use App\Controllers\RegistrationController;
 use App\Controllers\EmailVerificationController;
 use App\Controllers\DashboardController;
+use App\Controllers\AdminDashboardController;
 use App\Http\Request;
 use App\Http\Response;
 use App\Http\Router;
@@ -53,6 +54,24 @@ $router->get(
     '/dashboard',
     function (Request $request, array $parameters): Response {
         $controller = new DashboardController(
+            $request,
+            $parameters
+        );
+
+        return $controller->index();
+    }
+);
+
+/*
+|--------------------------------------------------------------------------
+| Admin Dashboard
+|--------------------------------------------------------------------------
+*/
+
+$router->get(
+    '/admin/dashboard',
+    function (Request $request, array $parameters): Response {
+        $controller = new AdminDashboardController(
             $request,
             $parameters
         );
