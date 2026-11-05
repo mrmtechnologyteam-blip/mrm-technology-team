@@ -16,6 +16,9 @@ final class EmailVerificationToken
         $this->db = $db;
     }
 
+    /**
+     * Create a verification token for a user.
+     */
     public function createForUser(
         int $userId,
         int $validMinutes = 60
@@ -43,7 +46,9 @@ final class EmailVerificationToken
                    AND used_at IS NULL'
             );
 
-            $delete->execute(['user_id' => $userId]);
+            $delete->execute([
+                'user_id' => $userId
+            ]);
 
             $insert = $this->db->prepare(
                 'INSERT INTO email_verification_tokens
@@ -55,12 +60,13 @@ final class EmailVerificationToken
             $insert->execute([
                 'user_id' => $userId,
                 'token_hash' => $tokenHash,
-                'expires_at' => $expiresAt,
+                'expires_at' => $expiresAt
             ]);
 
             $this->db->commit();
 
             return $token;
+
         } catch (\Throwable $exception) {
             if ($this->db->inTransaction()) {
                 $this->db->rollBack();
@@ -70,6 +76,118 @@ final class EmailVerificationToken
         }
     }
 
+    /**
+     * Consume token and activate account atomically.
+     */
+    public function consumeAndVerify(string $token): ?int
+    {
+        $token = trim($token);
+
+        if (
+            strlen($token) !== 64 ||
+            !ctype_xdigit($token)
+        ) {
+            return null;
+        }
+
+        $tokenHash = hash('sha256', $token);
+
+        $this->db->beginTransaction();
+
+        try {
+            $stmt = $this->db->prepare(
+                'SELECT id, user_id
+                 FROM email_verification_tokens
+                 WHERE token_hash = :token_hash
+                   AND used_at IS NULL
+                   AND expires_at > UTC_TIMESTAMP()
+                 LIMIT 1
+                 FOR UPDATE'
+            );
+
+            $stmt->execute([
+                'token_hash' => $tokenHash
+            ]);
+
+            $record = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$record) {
+                $this->db->commit();
+                return null;
+            }
+
+            $userId = (int) $record['user_id'];
+
+            $userUpdate = $this->db->prepare(
+                'UPDATE users
+                 SET email_verified_at = COALESCE(
+                         email_verified_at,
+                         UTC_TIMESTAMP()
+                     ),
+                     account_status = CASE
+                         WHEN account_status = "pending"
+                         THEN "active"
+                         ELSE account_status
+                     END
+                 WHERE id = :user_id'
+            );
+
+            $userUpdate->execute([
+                'user_id' => $userId
+            ]);
+
+            if ($userUpdate->rowCount() < 1) {
+                $checkUser = $this->db->prepare(
+                    'SELECT id
+                     FROM users
+                     WHERE id = :user_id
+                     LIMIT 1'
+                );
+
+                $checkUser->execute([
+                    'user_id' => $userId
+                ]);
+
+                if (!$checkUser->fetchColumn()) {
+                    throw new \RuntimeException(
+                        'Verification user not found.'
+                    );
+                }
+            }
+
+            $tokenUpdate = $this->db->prepare(
+                'UPDATE email_verification_tokens
+                 SET used_at = UTC_TIMESTAMP()
+                 WHERE id = :id
+                   AND used_at IS NULL'
+            );
+
+            $tokenUpdate->execute([
+                'id' => (int) $record['id']
+            ]);
+
+            if ($tokenUpdate->rowCount() !== 1) {
+                throw new \RuntimeException(
+                    'Verification token could not be consumed.'
+                );
+            }
+
+            $this->db->commit();
+
+            return $userId;
+
+        } catch (\Throwable $exception) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
+            throw $exception;
+        }
+    }
+
+    /**
+     * Consume a verification token.
+     */
     public function consume(string $token): ?int
     {
         $token = trim($token);
@@ -96,7 +214,9 @@ final class EmailVerificationToken
                  FOR UPDATE'
             );
 
-            $stmt->execute(['token_hash' => $tokenHash]);
+            $stmt->execute([
+                'token_hash' => $tokenHash
+            ]);
 
             $record = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -113,7 +233,7 @@ final class EmailVerificationToken
             );
 
             $update->execute([
-                'id' => (int) $record['id'],
+                'id' => (int) $record['id']
             ]);
 
             if ($update->rowCount() !== 1) {
@@ -126,6 +246,7 @@ final class EmailVerificationToken
             $this->db->commit();
 
             return $userId;
+
         } catch (\Throwable $exception) {
             if ($this->db->inTransaction()) {
                 $this->db->rollBack();
@@ -135,6 +256,9 @@ final class EmailVerificationToken
         }
     }
 
+    /**
+     * Delete expired or used tokens.
+     */
     public function deleteExpired(): int
     {
         $stmt = $this->db->prepare(
@@ -148,6 +272,9 @@ final class EmailVerificationToken
         return $stmt->rowCount();
     }
 
+    /**
+     * Delete all tokens belonging to a user.
+     */
     public function deleteByUser(int $userId): int
     {
         if ($userId <= 0) {
@@ -159,7 +286,9 @@ final class EmailVerificationToken
              WHERE user_id = :user_id'
         );
 
-        $stmt->execute(['user_id' => $userId]);
+        $stmt->execute([
+            'user_id' => $userId
+        ]);
 
         return $stmt->rowCount();
     }
