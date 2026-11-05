@@ -7,6 +7,7 @@ use App\Controllers\RegistrationController;
 use App\Controllers\EmailVerificationController;
 use App\Controllers\DashboardController;
 use App\Controllers\AdminDashboardController;
+use App\Controllers\ForgotPasswordController;
 use App\Http\Request;
 use App\Http\Response;
 use App\Http\Router;
@@ -164,7 +165,70 @@ $router->get(
     }
 );
 
-// Logout
+/*
+|--------------------------------------------------------------------------
+| Password Recovery
+|--------------------------------------------------------------------------
+*/
+
+// Forgot password page
+$router->get(
+    '/forgot-password',
+    function (Request $request, array $parameters): Response {
+        $controller = new ForgotPasswordController(
+            $request,
+            $parameters
+        );
+
+        return $controller->showForgotForm();
+    }
+);
+
+// Send password reset link
+$router->post(
+    '/forgot-password',
+    function (Request $request, array $parameters): Response {
+        $controller = new ForgotPasswordController(
+            $request,
+            $parameters
+        );
+
+        return $controller->sendResetLink();
+    }
+);
+
+// Reset password page
+$router->get(
+    '/reset-password',
+    function (Request $request, array $parameters): Response {
+        $controller = new ForgotPasswordController(
+            $request,
+            $parameters
+        );
+
+        return $controller->showResetForm();
+    }
+);
+
+// Save new password
+$router->post(
+    '/reset-password',
+    function (Request $request, array $parameters): Response {
+        $controller = new ForgotPasswordController(
+            $request,
+            $parameters
+        );
+
+        return $controller->resetPassword();
+    }
+);
+
+/*
+|--------------------------------------------------------------------------
+| Logout
+|--------------------------------------------------------------------------
+*/
+
 $router->post(
     '/logout',
     function (Request $request, array $parameters): Response {
