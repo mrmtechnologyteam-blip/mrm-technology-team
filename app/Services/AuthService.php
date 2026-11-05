@@ -21,23 +21,49 @@ final class AuthService
     }
 
     /**
-     * ثبت‌نام مشتری
+     * Normalize text to lowercase.
+     */
+    private function normalizeText(string $value): string
+    {
+        $value = trim($value);
+
+        return function_exists('mb_strtolower')
+            ? mb_strtolower($value, 'UTF-8')
+            : strtolower($value);
+    }
+
+    /**
+     * Get UTF-8 string length with fallback.
+     */
+    private function stringLength(string $value): int
+    {
+        if (function_exists('mb_strlen')) {
+            return mb_strlen($value, 'UTF-8');
+        }
+
+        $count = preg_match_all('/./us', $value, $matches);
+
+        return $count !== false ? $count : strlen($value);
+    }
+
+    /**
+     * Register a customer.
      */
     public function register(array $data): array
     {
         $fullName = trim((string) ($data['full_name'] ?? ''));
-        $email = mb_strtolower(trim((string) ($data['email'] ?? '')));
+        $email = $this->normalizeText((string) ($data['email'] ?? ''));
         $password = (string) ($data['password'] ?? '');
         $whatsapp = trim((string) ($data['whatsapp_number'] ?? ''));
         $country = trim((string) ($data['country'] ?? ''));
 
-        if ($fullName === '' || mb_strlen($fullName) > 150) {
+        if ($fullName === '' || $this->stringLength($fullName) > 150) {
             throw new InvalidArgumentException('نام کامل معتبر نیست.');
         }
 
         if (
             !filter_var($email, FILTER_VALIDATE_EMAIL) ||
-            mb_strlen($email) > 190
+            $this->stringLength($email) > 190
         ) {
             throw new InvalidArgumentException('ایمیل معتبر نیست.');
         }
@@ -54,21 +80,17 @@ final class AuthService
             );
         }
 
-        if (
-            $whatsapp === '' ||
-            mb_strlen($whatsapp) > 30
-        ) {
+        if ($whatsapp === '' || $this->stringLength($whatsapp) > 30) {
             throw new InvalidArgumentException('شماره واتساپ معتبر نیست.');
         }
 
-        if (mb_strlen($country) > 100) {
+        if ($this->stringLength($country) > 100) {
             throw new InvalidArgumentException('نام کشور بیش از حد طولانی است.');
         }
 
         $check = $this->db->prepare(
             'SELECT id FROM users WHERE email = :email LIMIT 1'
         );
-
         $check->execute(['email' => $email]);
 
         if ($check->fetchColumn()) {
@@ -115,7 +137,9 @@ final class AuthService
             $token = $this->verificationTokens->createForUser($userId);
         } catch (\Throwable $exception) {
             $delete = $this->db->prepare(
-                'DELETE FROM users WHERE id = :id AND role = "customer"'
+                'DELETE FROM users
+                 WHERE id = :id
+                   AND role = "customer"'
             );
 
             $delete->execute(['id' => $userId]);
@@ -132,16 +156,13 @@ final class AuthService
     }
 
     /**
-     * ورود کاربر
+     * Login user.
      */
     public function login(string $email, string $password): array
     {
-        $email = mb_strtolower(trim($email));
+        $email = $this->normalizeText($email);
 
-        if (
-            !filter_var($email, FILTER_VALIDATE_EMAIL) ||
-            $password === ''
-        ) {
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL) || $password === '') {
             throw new InvalidArgumentException('ایمیل یا رمز عبور معتبر نیست.');
         }
 
@@ -182,6 +203,10 @@ final class AuthService
         if (password_needs_rehash($user['password_hash'], PASSWORD_DEFAULT)) {
             $newHash = password_hash($password, PASSWORD_DEFAULT);
 
+            if ($newHash === false) {
+                throw new RuntimeException('به‌روزرسانی رمز عبور ناموفق بود.');
+            }
+
             $update = $this->db->prepare(
                 'UPDATE users
                  SET password_hash = :password_hash
@@ -200,7 +225,7 @@ final class AuthService
     }
 
     /**
-     * دریافت اطلاعات کاربر
+     * Get user information.
      */
     public function getUser(int $userId): ?array
     {
