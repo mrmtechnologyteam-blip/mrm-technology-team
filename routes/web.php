@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Controllers\AuthController;
+use App\Controllers\RegistrationController;
+use App\Controllers\EmailVerificationController;
 use App\Http\Request;
 use App\Http\Response;
 use App\Http\Router;
@@ -63,6 +65,58 @@ $router->post(
         $controller = new AuthController($request, $parameters);
 
         return $controller->login();
+    }
+);
+
+// Registration page
+$router->get(
+    '/register',
+    function (Request $request, array $parameters): Response {
+        $controller = new RegistrationController(
+            $request,
+            $parameters
+        );
+
+        return $controller->showRegister();
+    }
+);
+
+// Process registration
+$router->post(
+    '/register',
+    function (Request $request, array $parameters): Response {
+        $controller = new RegistrationController(
+            $request,
+            $parameters
+        );
+
+        return $controller->register();
+    }
+);
+
+// Email verification information page
+$router->get(
+    '/verification-required',
+    function (Request $request, array $parameters): Response {
+        $controller = new EmailVerificationController(
+            $request,
+            $parameters
+        );
+
+        return $controller->showRequired();
+    }
+);
+
+// Verify email using token
+$router->get(
+    '/verify-email',
+    function (Request $request, array $parameters): Response {
+        $controller = new EmailVerificationController(
+            $request,
+            $parameters
+        );
+
+        return $controller->verify();
     }
 );
 
