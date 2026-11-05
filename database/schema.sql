@@ -1,8 +1,8 @@
-CREATE DATABASE IF NOT EXISTS mrm_technology_db
+CREATE DATABASE IF NOT EXISTS mrm_technology_team
 CHARACTER SET utf8mb4
 COLLATE utf8mb4_unicode_ci;
 
-USE mrm_technology_db;
+USE mrm_technology_team;
 
 -- 1. USERS
 CREATE TABLE users (
