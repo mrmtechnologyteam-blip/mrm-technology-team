@@ -15,9 +15,6 @@ use Throwable;
 
 final class ForgotPasswordController extends Controller
 {
-    /**
-     * نمایش فرم درخواست بازیابی رمز عبور
-     */
     public function showForgotForm(): Response
     {
         if ($this->isAuthenticated()) {
@@ -27,9 +24,6 @@ final class ForgotPasswordController extends Controller
         return $this->view('pages.auth.forgot-password');
     }
 
-    /**
-     * ارسال لینک بازیابی رمز عبور
-     */
     public function sendResetLink(): Response
     {
         $methodResponse = $this->requirePost();
@@ -42,9 +36,7 @@ final class ForgotPasswordController extends Controller
             return Response::redirect('/dashboard');
         }
 
-        $email = trim(
-            (string) $this->post('email', '')
-        );
+        $email = trim((string) $this->post('email', ''));
 
         $_SESSION['old'] = [
             'email' => $email,
@@ -67,10 +59,6 @@ final class ForgotPasswordController extends Controller
             $userModel = new User($db);
             $user = $userModel->findByEmail($email);
 
-            /*
-             * برای جلوگیری از شناسایی ایمیل‌های ثبت‌شده،
-             * در همه حالت‌ها پیام یکسان نمایش داده می‌شود.
-             */
             if (
                 $user &&
                 ($user['account_status'] ?? '') === 'active' &&
@@ -88,9 +76,17 @@ final class ForgotPasswordController extends Controller
                     '/'
                 );
 
-                if ($appUrl === '') {
+                if (
+                    $appUrl === '' ||
+                    !filter_var($appUrl, FILTER_VALIDATE_URL) ||
+                    !in_array(
+                        strtolower((string) parse_url($appUrl, PHP_URL_SCHEME)),
+                        ['http', 'https'],
+                        true
+                    )
+                ) {
                     throw new RuntimeException(
-                        'آدرس اصلی وب‌سایت در تنظیمات تعریف نشده است.'
+                        'APP_URL configuration is invalid.'
                     );
                 }
 
@@ -100,6 +96,12 @@ final class ForgotPasswordController extends Controller
 
                 $safeName = htmlspecialchars(
                     (string) $user['full_name'],
+                    ENT_QUOTES | ENT_SUBSTITUTE,
+                    'UTF-8'
+                );
+
+                $safeResetUrl = htmlspecialchars(
+                    $resetUrl,
                     ENT_QUOTES | ENT_SUBSTITUTE,
                     'UTF-8'
                 );
@@ -143,11 +145,7 @@ final class ForgotPasswordController extends Controller
 
                             <p style="text-align:center;margin:30px 0;">
                                 <a
-                                    href="' . htmlspecialchars(
-                                        $resetUrl,
-                                        ENT_QUOTES | ENT_SUBSTITUTE,
-                                        'UTF-8'
-                                    ) . '"
+                                    href="' . $safeResetUrl . '"
                                     style="
                                         display:inline-block;
                                         padding:14px 25px;
@@ -205,50 +203,22 @@ final class ForgotPasswordController extends Controller
 
             return Response::redirect('/forgot-password');
 
-        } catch (PDOException $exception) {
-
-            error_log(
-                '[ForgotPasswordController] Database error: '
-                . $exception->getMessage()
-            );
-
-            $_SESSION['errors'] = [
-                'در حال حاضر پردازش درخواست امکان‌پذیر نیست. لطفاً بعداً تلاش کنید.',
-            ];
-
-            return Response::redirect('/forgot-password');
-
-        } catch (RuntimeException $exception) {
-
-            error_log(
-                '[ForgotPasswordController] Service error: '
-                . $exception->getMessage()
-            );
-
-            $_SESSION['errors'] = [
-                'ارسال درخواست با مشکل مواجه شد. لطفاً تنظیمات سرویس ایمیل را بررسی کنید.',
-            ];
-
-            return Response::redirect('/forgot-password');
-
         } catch (Throwable $exception) {
 
             error_log(
-                '[ForgotPasswordController] Unexpected error: '
+                '[ForgotPasswordController] Password recovery request failed: '
                 . $exception->getMessage()
             );
 
-            $_SESSION['errors'] = [
-                'خطای غیرمنتظره‌ای رخ داد. لطفاً دوباره تلاش کنید.',
-            ];
+            unset($_SESSION['old']);
+
+            $_SESSION['flash_message'] =
+                'اگر این ایمیل متعلق به یک حساب فعال باشد، لینک بازیابی رمز عبور برای آن ارسال خواهد شد.';
 
             return Response::redirect('/forgot-password');
         }
     }
 
-    /**
-     * نمایش فرم تعیین رمز عبور جدید
-     */
     public function showResetForm(): Response
     {
         if ($this->isAuthenticated()) {
@@ -278,9 +248,6 @@ final class ForgotPasswordController extends Controller
         );
     }
 
-    /**
-     * ذخیره رمز عبور جدید
-     */
     public function resetPassword(): Response
     {
         $methodResponse = $this->requirePost();
@@ -316,6 +283,22 @@ final class ForgotPasswordController extends Controller
             ];
 
             return Response::redirect('/forgot-password');
+        }
+
+        if (
+            strlen($password) < 8 ||
+            strlen($password) > 128 ||
+            !preg_match('/[A-Z]/', $password) ||
+            !preg_match('/[a-z]/', $password) ||
+            !preg_match('/[0-9]/', $password)
+        ) {
+            $_SESSION['errors'] = [
+                'رمز عبور باید بین ۸ تا ۱۲۸ نویسه باشد و شامل حروف بزرگ انگلیسی، حروف کوچک انگلیسی و عدد باشد.',
+            ];
+
+            return Response::redirect(
+                '/reset-password?token=' . rawurlencode($token)
+            );
         }
 
         if ($password !== $passwordConfirmation) {
@@ -371,18 +354,21 @@ final class ForgotPasswordController extends Controller
 
         } catch (RuntimeException $exception) {
 
+            error_log(
+                '[ForgotPasswordController] Password reset service error: '
+                . $exception->getMessage()
+            );
+
             $_SESSION['errors'] = [
-                'رمز عبور باید حداقل ۸ نویسه داشته باشد و شامل حروف بزرگ، حروف کوچک و عدد باشد.',
+                'تغییر رمز عبور انجام نشد. ممکن است لینک منقضی شده باشد. دوباره درخواست بازیابی دهید.',
             ];
 
-            return Response::redirect(
-                '/reset-password?token=' . rawurlencode($token)
-            );
+            return Response::redirect('/forgot-password');
 
         } catch (Throwable $exception) {
 
             error_log(
-                '[ForgotPasswordController] Reset error: '
+                '[ForgotPasswordController] Unexpected reset error: '
                 . $exception->getMessage()
             );
 
@@ -390,9 +376,7 @@ final class ForgotPasswordController extends Controller
                 'خطای غیرمنتظره‌ای رخ داد. لطفاً دوباره تلاش کنید.',
             ];
 
-            return Response::redirect(
-                '/forgot-password'
-            );
+            return Response::redirect('/forgot-password');
         }
     }
 }
