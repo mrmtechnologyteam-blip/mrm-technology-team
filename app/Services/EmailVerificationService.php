@@ -20,6 +20,9 @@ final class EmailVerificationService
         $this->users = new User($db);
     }
 
+    /**
+     * Issue a verification token.
+     */
     public function issueToken(
         int $userId,
         int $validMinutes = 60
@@ -44,6 +47,9 @@ final class EmailVerificationService
         );
     }
 
+    /**
+     * Verify email and consume token atomically.
+     */
     public function verify(string $token): bool
     {
         $token = trim($token);
@@ -55,30 +61,14 @@ final class EmailVerificationService
             return false;
         }
 
-        // مصرف توکن؛ این متد تراکنش خودش را مدیریت می‌کند.
-        $userId = $this->tokens->consume($token);
+        $userId = $this->tokens->consumeAndVerify($token);
 
-        if ($userId === null) {
-            return false;
-        }
-
-        $user = $this->users->findById($userId);
-
-        if (!$user) {
-            throw new RuntimeException('User not found.');
-        }
-
-        if (!empty($user['email_verified_at'])) {
-            return true;
-        }
-
-        if (!$this->users->verifyEmail($userId)) {
-            throw new RuntimeException('Email verification failed.');
-        }
-
-        return true;
+        return $userId !== null;
     }
 
+    /**
+     * Remove expired and used tokens.
+     */
     public function cleanup(): int
     {
         return $this->tokens->deleteExpired();
