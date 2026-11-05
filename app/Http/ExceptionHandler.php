@@ -60,6 +60,7 @@ final class ExceptionHandler
             409 => 'conflict',
             413 => 'payload_too_large',
             415 => 'unsupported_media_type',
+            419 => 'csrf_token_mismatch',
             422 => 'unprocessable_entity',
             429 => 'too_many_requests',
             default => 'http_error',
