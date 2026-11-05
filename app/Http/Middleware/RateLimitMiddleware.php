@@ -35,41 +35,95 @@ final class RateLimitMiddleware implements MiddlewareInterface
             return $next($request);
         }
 
-        $ip = $request->ip();
+        $ip = $request->ip() ?? 'unknown';
 
-        if ($ip === null || $ip === '') {
-            $ip = 'unknown';
-        }
+        $globalKey = 'http:' . hash('sha256', $ip);
 
-        $key = 'http:' . hash('sha256', $ip);
-
-        $allowed = $this->limiter->attempt(
-            $key,
+        $globalAllowed = $this->limiter->attempt(
+            $globalKey,
             $this->maxAttempts,
             $this->decaySeconds
         );
 
-        if (!$allowed) {
-            $retryAfter = max(
-                1,
-                $this->limiter->availableIn($key)
-            );
-
-            return Response::json(
-                [
-                    'success' => false,
-                    'error' => 'too_many_requests',
-                    'message' => 'تعداد درخواست‌های شما بیش از حد مجاز است. لطفاً کمی بعد دوباره تلاش کنید.',
-                    'retry_after' => $retryAfter,
-                ],
-                429,
-                [
-                    'Retry-After' => (string) $retryAfter,
-                    'Cache-Control' => 'no-store',
-                ]
+        if (!$globalAllowed) {
+            return $this->tooManyRequests(
+                $globalKey,
+                'تعداد درخواست‌های شما بیش از حد مجاز است.'
             );
         }
 
+        if ($request->isMethod('POST')) {
+            $rules = [
+                '/login' => [
+                    'attempts' => 10,
+                    'seconds' => 900,
+                ],
+
+                '/register' => [
+                    'attempts' => 5,
+                    'seconds' => 900,
+                ],
+
+                '/forgot-password' => [
+                    'attempts' => 5,
+                    'seconds' => 900,
+                ],
+
+                '/reset-password' => [
+                    'attempts' => 10,
+                    'seconds' => 900,
+                ],
+            ];
+
+            $path = $request->path();
+
+            if (isset($rules[$path])) {
+                $rule = $rules[$path];
+
+                $key = 'auth:'
+                    . hash('sha256', $ip)
+                    . ':'
+                    . hash('sha256', $path);
+
+                $allowed = $this->limiter->attempt(
+                    $key,
+                    $rule['attempts'],
+                    $rule['seconds']
+                );
+
+                if (!$allowed) {
+                    return $this->tooManyRequests(
+                        $key,
+                        'تعداد تلاش‌های شما بیش از حد مجاز است. لطفاً ۱۵ دقیقه بعد دوباره تلاش کنید.'
+                    );
+                }
+            }
+        }
+
         return $next($request);
+    }
+
+    private function tooManyRequests(
+        string $key,
+        string $message
+    ): Response {
+        $retryAfter = max(
+            1,
+            $this->limiter->availableIn($key)
+        );
+
+        return Response::json(
+            [
+                'success' => false,
+                'error' => 'too_many_requests',
+                'message' => $message,
+                'retry_after' => $retryAfter,
+            ],
+            429,
+            [
+                'Retry-After' => (string) $retryAfter,
+                'Cache-Control' => 'no-store',
+            ]
+        );
     }
 }
