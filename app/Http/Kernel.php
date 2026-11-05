@@ -37,15 +37,20 @@ final class Kernel
                 fn (Request $request): Response =>
                     $this->router->dispatch($request)
             );
+        } catch (ValidationException $exception) {
+            return Response::json([
+                'success' => false,
+                'error' => 'validation_error',
+                'message' => $exception->getMessage(),
+                'errors' => $exception->errors(),
+            ], 422);
         } catch (Throwable $exception) {
-            error_log(
-                sprintf(
-                    '[Kernel] %s in %s:%d',
-                    $exception->getMessage(),
-                    $exception->getFile(),
-                    $exception->getLine()
-                )
-            );
+            error_log(sprintf(
+                '[Kernel] %s in %s:%d',
+                $exception->getMessage(),
+                $exception->getFile(),
+                $exception->getLine()
+            ));
 
             if (defined('APP_DEBUG') && APP_DEBUG === true) {
                 return Response::json([
@@ -66,9 +71,7 @@ final class Kernel
     public function run(): void
     {
         $request = Request::capture();
-
         $response = $this->handle($request);
-
         $response->send();
     }
 
