@@ -15,9 +15,6 @@ final class SessionAuthService
         $this->auth = $auth;
     }
 
-    /**
-     * ورود و ایجاد نشست امن
-     */
     public function login(string $email, string $password): array
     {
         if (session_status() !== PHP_SESSION_ACTIVE) {
@@ -38,9 +35,6 @@ final class SessionAuthService
         return $user;
     }
 
-    /**
-     * بررسی وضعیت ورود
-     */
     public function isAuthenticated(): bool
     {
         return session_status() === PHP_SESSION_ACTIVE
@@ -49,43 +43,27 @@ final class SessionAuthService
             && (int) $_SESSION['user_id'] > 0;
     }
 
-    /**
-     * دریافت شناسه کاربر واردشده
-     */
     public function userId(): ?int
     {
-        if (!$this->isAuthenticated()) {
-            return null;
-        }
-
-        return (int) $_SESSION['user_id'];
+        return $this->isAuthenticated()
+            ? (int) $_SESSION['user_id']
+            : null;
     }
 
-    /**
-     * دریافت نقش کاربر
-     */
     public function userRole(): ?string
     {
-        if (!$this->isAuthenticated()) {
-            return null;
-        }
-
-        return $_SESSION['user_role'] ?? null;
+        return $this->isAuthenticated()
+            ? ($_SESSION['user_role'] ?? null)
+            : null;
     }
 
-    /**
-     * الزام ورود کاربر
-     */
     public function requireAuth(): void
     {
-        if (!$this->isAuthenticated()) {
+        if (!$this->isAuthenticated() || !$this->currentUser()) {
             throw new RuntimeException('Authentication required.');
         }
     }
 
-    /**
-     * الزام دسترسی مدیر
-     */
     public function requireAdmin(): void
     {
         $this->requireAuth();
@@ -95,9 +73,6 @@ final class SessionAuthService
         }
     }
 
-    /**
-     * دریافت اطلاعات کاربر فعلی از دیتابیس
-     */
     public function currentUser(): ?array
     {
         $userId = $this->userId();
@@ -108,22 +83,23 @@ final class SessionAuthService
 
         $user = $this->auth->getUser($userId);
 
-        if (!$user || $user['account_status'] !== 'active') {
+        if (
+            !$user ||
+            $user['account_status'] !== 'active' ||
+            empty($user['email_verified_at'])
+        ) {
             $this->logout();
             return null;
         }
 
-        if (empty($user['email_verified_at'])) {
-            $this->logout();
-            return null;
-        }
+        // همگام‌سازی نقش و مشخصات با دیتابیس
+        $_SESSION['user_name'] = $user['full_name'];
+        $_SESSION['user_email'] = $user['email'];
+        $_SESSION['user_role'] = $user['role'];
 
         return $user;
     }
 
-    /**
-     * خروج امن
-     */
     public function logout(): void
     {
         if (session_status() !== PHP_SESSION_ACTIVE) {
