@@ -91,5 +91,8 @@ define('APP_NAME', 'MRM Technology Team');
     <p>Your Idea. Our Technology. Your Future.</p>
 </footer>
 
+<!-- Main JavaScript -->
+<script src="assets/js/app.js"></script>
+
 </body>
 </html>
