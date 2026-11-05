@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Controllers\AuthController;
 use App\Controllers\RegistrationController;
 use App\Controllers\EmailVerificationController;
+use App\Controllers\DashboardController;
 use App\Http\Request;
 use App\Http\Response;
 use App\Http\Router;
@@ -44,6 +45,24 @@ $router->get(
 
 /*
 |--------------------------------------------------------------------------
+| Customer Dashboard
+|--------------------------------------------------------------------------
+*/
+
+$router->get(
+    '/dashboard',
+    function (Request $request, array $parameters): Response {
+        $controller = new DashboardController(
+            $request,
+            $parameters
+        );
+
+        return $controller->index();
+    }
+);
+
+/*
+|--------------------------------------------------------------------------
 | Authentication
 |--------------------------------------------------------------------------
 */
@@ -52,7 +71,10 @@ $router->get(
 $router->get(
     '/login',
     function (Request $request, array $parameters): Response {
-        $controller = new AuthController($request, $parameters);
+        $controller = new AuthController(
+            $request,
+            $parameters
+        );
 
         return $controller->showLogin();
     }
@@ -62,7 +84,10 @@ $router->get(
 $router->post(
     '/login',
     function (Request $request, array $parameters): Response {
-        $controller = new AuthController($request, $parameters);
+        $controller = new AuthController(
+            $request,
+            $parameters
+        );
 
         return $controller->login();
     }
@@ -124,7 +149,10 @@ $router->get(
 $router->post(
     '/logout',
     function (Request $request, array $parameters): Response {
-        $controller = new AuthController($request, $parameters);
+        $controller = new AuthController(
+            $request,
+            $parameters
+        );
 
         return $controller->logout();
     }
