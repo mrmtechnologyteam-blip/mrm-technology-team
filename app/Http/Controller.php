@@ -74,6 +74,7 @@ abstract class Controller
         if ($referer !== null && $referer !== '') {
             $refererPath = parse_url($referer, PHP_URL_PATH);
             $refererHost = parse_url($referer, PHP_URL_HOST);
+
             $appHost = parse_url(
                 defined('APP_URL') ? APP_URL : '',
                 PHP_URL_HOST
@@ -235,7 +236,7 @@ abstract class Controller
     protected function isAdmin(): bool
     {
         return $this->isAuthenticated()
-            && ($_SESSION['role'] ?? '') === 'admin';
+            && ($_SESSION['user_role'] ?? $_SESSION['role'] ?? '') === 'admin';
     }
 
     protected function requireAuthentication(): ?Response
