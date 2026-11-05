@@ -44,6 +44,12 @@ final class Kernel
                 'message' => $exception->getMessage(),
                 'errors' => $exception->errors(),
             ], 422);
+        } catch (HttpException $exception) {
+            return Response::json([
+                'success' => false,
+                'error' => 'http_error',
+                'message' => $exception->getMessage(),
+            ], $exception->statusCode(), $exception->headers());
         } catch (Throwable $exception) {
             error_log(sprintf(
                 '[Kernel] %s in %s:%d',
