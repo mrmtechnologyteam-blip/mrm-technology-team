@@ -82,11 +82,7 @@ final class Router
         $matchedParameters = [];
 
         foreach ($this->routes as $route) {
-            if (!preg_match(
-                $route['pattern'],
-                $path,
-                $matches
-            )) {
+            if (!preg_match($route['pattern'], $path, $matches)) {
                 continue;
             }
 
@@ -132,37 +128,23 @@ final class Router
             return Response::notFound();
         }
 
-        try {
-            $response = ($matchedRoute['handler'])(
-                $request,
-                $matchedParameters
+        /*
+         * Exceptions are intentionally allowed to bubble up
+         * to Kernel::handle() and ExceptionHandler.
+         */
+
+        $response = ($matchedRoute['handler'])(
+            $request,
+            $matchedParameters
+        );
+
+        if (!$response instanceof Response) {
+            throw new \UnexpectedValueException(
+                'Route handlers must return an instance of Response.'
             );
-
-            if (!$response instanceof Response) {
-                throw new \UnexpectedValueException(
-                    'Route handlers must return an instance of Response.'
-                );
-            }
-
-            return $response;
-        } catch (\Throwable $exception) {
-            error_log(
-                sprintf(
-                    '[Router Error] %s in %s:%d',
-                    $exception->getMessage(),
-                    $exception->getFile(),
-                    $exception->getLine()
-                )
-            );
-
-            if (defined('APP_DEBUG') && APP_DEBUG === true) {
-                return Response::serverError(
-                    'خطا: ' . $exception->getMessage()
-                );
-            }
-
-            return Response::serverError();
         }
+
+        return $response;
     }
 
     private function normalizePath(string $path): string
