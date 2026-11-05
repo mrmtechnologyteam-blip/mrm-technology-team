@@ -17,10 +17,26 @@ final class User
     }
 
     /**
+     * Normalize email address.
+     */
+    private function normalizeEmail(string $email): string
+    {
+        $email = trim($email);
+
+        return function_exists('mb_strtolower')
+            ? mb_strtolower($email, 'UTF-8')
+            : strtolower($email);
+    }
+
+    /**
      * Find user by ID.
      */
     public function findById(int $id): ?array
     {
+        if ($id <= 0) {
+            return null;
+        }
+
         $stmt = $this->db->prepare(
             "SELECT *
              FROM users
@@ -38,6 +54,12 @@ final class User
      */
     public function findByEmail(string $email): ?array
     {
+        $email = $this->normalizeEmail($email);
+
+        if ($email === '') {
+            return null;
+        }
+
         $stmt = $this->db->prepare(
             "SELECT *
              FROM users
@@ -46,7 +68,7 @@ final class User
         );
 
         $stmt->execute([
-            'email' => mb_strtolower(trim($email))
+            'email' => $email
         ]);
 
         return $stmt->fetch() ?: null;
@@ -76,8 +98,10 @@ final class User
             }
         }
 
+        $email = $this->normalizeEmail($data['email']);
+
         if (!filter_var(
-            $data['email'],
+            $email,
             FILTER_VALIDATE_EMAIL
         )) {
             throw new RuntimeException(
@@ -85,7 +109,7 @@ final class User
             );
         }
 
-        if ($this->findByEmail($data['email'])) {
+        if ($this->findByEmail($email)) {
             throw new RuntimeException(
                 'Email address already exists.'
             );
@@ -124,10 +148,12 @@ final class User
 
         $stmt->execute([
             'full_name' => trim($data['full_name']),
-            'email' => mb_strtolower(trim($data['email'])),
+            'email' => $email,
             'password_hash' => $passwordHash,
             'whatsapp_number' => trim($data['whatsapp_number']),
-            'country' => $data['country'] ?? null
+            'country' => isset($data['country'])
+                ? trim((string) $data['country'])
+                : null
         ]);
 
         return (int) $this->db->lastInsertId();
@@ -154,6 +180,12 @@ final class User
         int $userId,
         string $newPassword
     ): bool {
+        if ($userId <= 0) {
+            throw new RuntimeException(
+                'Invalid user ID.'
+            );
+        }
+
         $passwordHash = password_hash(
             $newPassword,
             PASSWORD_DEFAULT
@@ -184,6 +216,10 @@ final class User
      */
     public function verifyEmail(int $userId): bool
     {
+        if ($userId <= 0) {
+            return false;
+        }
+
         $stmt = $this->db->prepare(
             "UPDATE users
              SET email_verified_at = CURRENT_TIMESTAMP,
