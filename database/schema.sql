@@ -165,6 +165,19 @@ CREATE TABLE admin_logs (
 -- INITIAL PROJECT CATEGORIES
 INSERT INTO project_categories (name, description)
 VALUES
+        FOREIGN KEY (category_id)
+        REFERENCES project_categories(id),
+
+    FOREIGN KEY (parent_question_id)
+        REFERENCES project_questions(id),
+
+    UNIQUE KEY unique_category_question (
+        category_id,
+        section_number,
+        question_number
+    )
+
+) ENGINE=InnoDB;
 (
     'Application Development',
     'Android, iOS and Web Applications'
