@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Http;
 
 use App\Http\Middleware\CsrfMiddleware;
+use App\Http\Middleware\RateLimitMiddleware;
 use App\Http\Middleware\RequestSizeMiddleware;
 use App\Http\Middleware\SecurityHeadersMiddleware;
+use Throwable;
 
 final class Kernel
 {
@@ -14,32 +16,17 @@ final class Kernel
 
     private MiddlewarePipeline $pipeline;
 
-    public function __construct(
-        ?Router $router = null,
-        ?MiddlewarePipeline $pipeline = null
-    ) {
-        $this->router = $router ?? new Router();
-
-        if ($pipeline !== null) {
-            $this->pipeline = $pipeline;
-        } else {
-            $this->pipeline = new MiddlewarePipeline();
-
-            $this->pipeline
-                ->add(new RequestSizeMiddleware())
-                ->add(new CsrfMiddleware())
-                ->add(new SecurityHeadersMiddleware());
-        }
-    }
-
-    public function router(): Router
+    public function __construct(Router $router)
     {
-        return $this->router;
-    }
+        $this->router = $router;
+        $this->pipeline = new MiddlewarePipeline();
 
-    public function pipeline(): MiddlewarePipeline
-    {
-        return $this->pipeline;
+        $this->pipeline->addMany([
+            new RequestSizeMiddleware(),
+            new RateLimitMiddleware(new RateLimiter()),
+            new CsrfMiddleware(),
+            new SecurityHeadersMiddleware(),
+        ]);
     }
 
     public function handle(Request $request): Response
@@ -50,56 +37,43 @@ final class Kernel
                 fn (Request $request): Response =>
                     $this->router->dispatch($request)
             );
-        } catch (\Throwable $exception) {
-            error_log(sprintf(
-                '[Kernel Error] %s in %s:%d',
-                $exception->getMessage(),
-                $exception->getFile(),
-                $exception->getLine()
-            ));
+        } catch (Throwable $exception) {
+            error_log(
+                sprintf(
+                    '[Kernel] %s in %s:%d',
+                    $exception->getMessage(),
+                    $exception->getFile(),
+                    $exception->getLine()
+                )
+            );
 
             if (defined('APP_DEBUG') && APP_DEBUG === true) {
-                return Response::serverError(
-                    'خطا: ' . $exception->getMessage()
-                );
+                return Response::json([
+                    'success' => false,
+                    'error' => 'internal_server_error',
+                    'message' => $exception->getMessage(),
+                ], 500);
             }
 
-            return Response::serverError();
+            return Response::json([
+                'success' => false,
+                'error' => 'internal_server_error',
+                'message' => 'خطای داخلی سرور رخ داده است.',
+            ], 500);
         }
     }
 
     public function run(): void
     {
-        try {
-            $request = Request::capture();
-            $response = $this->handle($request);
-            $response->send();
-        } catch (\Throwable $exception) {
-            error_log(sprintf(
-                '[Kernel Fatal Error] %s in %s:%d',
-                $exception->getMessage(),
-                $exception->getFile(),
-                $exception->getLine()
-            ));
+        $request = Request::capture();
 
-            if (!headers_sent()) {
-                http_response_code(500);
-                header('Content-Type: text/html; charset=UTF-8');
-                header('Cache-Control: no-store');
+        $response = $this->handle($request);
 
-                if (defined('APP_DEBUG') && APP_DEBUG === true) {
-                    echo '<h1>500</h1><pre>'
-                        . htmlspecialchars(
-                            $exception->getMessage(),
-                            ENT_QUOTES | ENT_SUBSTITUTE,
-                            'UTF-8'
-                        )
-                        . '</pre>';
-                } else {
-                    echo '<h1>500</h1>';
-                    echo '<p>خطای داخلی سرور رخ داده است.</p>';
-                }
-            }
-        }
+        $response->send();
+    }
+
+    public function router(): Router
+    {
+        return $this->router;
     }
 }
