@@ -12,7 +12,7 @@ abstract class Controller
 
     protected array $parameters = [];
 
-    protected ?FlashMessageService $flash = null;
+    protected ?FlashMessageService $flashService = null;
 
     public function __construct(
         Request $request,
@@ -67,25 +67,13 @@ abstract class Controller
         return Response::redirect($location, $statusCode);
     }
 
-    protected function back(
-        string $fallback = '/'
-    ): Response {
+    protected function back(string $fallback = '/'): Response
+    {
         $referer = $this->request->header('Referer');
 
-        if (
-            $referer !== null
-            && $referer !== ''
-        ) {
-            $refererPath = parse_url(
-                $referer,
-                PHP_URL_PATH
-            );
-
-            $refererHost = parse_url(
-                $referer,
-                PHP_URL_HOST
-            );
-
+        if ($referer !== null && $referer !== '') {
+            $refererPath = parse_url($referer, PHP_URL_PATH);
+            $refererHost = parse_url($referer, PHP_URL_HOST);
             $appHost = parse_url(
                 defined('APP_URL') ? APP_URL : '',
                 PHP_URL_HOST
@@ -93,6 +81,7 @@ abstract class Controller
 
             if (
                 is_string($refererPath)
+                && $refererPath !== ''
                 && (
                     $refererHost === null
                     || $appHost === null
@@ -144,11 +133,11 @@ abstract class Controller
 
     protected function flash(): FlashMessageService
     {
-        if ($this->flash === null) {
-            $this->flash = new FlashMessageService();
+        if ($this->flashService === null) {
+            $this->flashService = new FlashMessageService();
         }
 
-        return $this->flash;
+        return $this->flashService;
     }
 
     protected function parameter(
@@ -194,13 +183,10 @@ abstract class Controller
     protected function requireJson(): ?Response
     {
         if (!$this->request->isJsonRequest()) {
-            return Response::json(
-                [
-                    'success' => false,
-                    'message' => 'درخواست باید از نوع JSON باشد.',
-                ],
-                415
-            );
+            return Response::json([
+                'success' => false,
+                'message' => 'درخواست باید از نوع JSON باشد.',
+            ], 415);
         }
 
         return null;
@@ -208,19 +194,19 @@ abstract class Controller
 
     protected function validateCsrf(): ?Response
     {
-        if (
-            !function_exists('verify_csrf_token')
-            || !verify_csrf_token(
-                (string) $this->request->input('_csrf_token', '')
-            )
-        ) {
-            return Response::json(
-                [
-                    'success' => false,
-                    'message' => 'درخواست نامعتبر یا منقضی شده است.',
-                ],
-                419
-            );
+        $token = (string) $this->request->input(
+            '_csrf_token',
+            ''
+        );
+
+        $valid = function_exists('verify_csrf_token')
+            && verify_csrf_token($token);
+
+        if (!$valid) {
+            return Response::json([
+                'success' => false,
+                'message' => 'درخواست نامعتبر یا منقضی شده است.',
+            ], 419);
         }
 
         return null;
@@ -229,13 +215,13 @@ abstract class Controller
     protected function currentUserId(): ?int
     {
         if (
-            !isset($_SESSION['user']['id'])
-            || !is_numeric($_SESSION['user']['id'])
+            !isset($_SESSION['user_id'])
+            || !is_numeric($_SESSION['user_id'])
         ) {
             return null;
         }
 
-        $id = (int) $_SESSION['user']['id'];
+        $id = (int) $_SESSION['user_id'];
 
         return $id > 0 ? $id : null;
     }
@@ -249,7 +235,7 @@ abstract class Controller
     protected function isAdmin(): bool
     {
         return $this->isAuthenticated()
-            && ($_SESSION['user']['role'] ?? '') === 'admin';
+            && ($_SESSION['role'] ?? '') === 'admin';
     }
 
     protected function requireAuthentication(): ?Response
