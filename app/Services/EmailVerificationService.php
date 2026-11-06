@@ -25,7 +25,8 @@ final class EmailVerificationService
      */
     public function issueToken(
         int $userId,
-        int $validMinutes = 60
+        int $validMinutes = 60,
+        bool $replaceExisting = true
     ): string {
         if ($userId <= 0) {
             throw new RuntimeException('Invalid user ID.');
@@ -43,7 +44,21 @@ final class EmailVerificationService
 
         return $this->tokens->createForUser(
             $userId,
-            $validMinutes
+            $validMinutes,
+            $replaceExisting
+        );
+    }
+
+    /**
+     * Remove previous unused tokens after successful email delivery.
+     */
+    public function cleanupOtherTokens(
+        int $userId,
+        string $keepToken
+    ): int {
+        return $this->tokens->deleteOtherUnusedTokens(
+            $userId,
+            $keepToken
         );
     }
 
