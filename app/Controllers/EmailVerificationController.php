@@ -8,13 +8,12 @@ use App\Http\Controller;
 use App\Http\Response;
 use App\Services\EmailVerificationService;
 use PDOException;
-use RuntimeException;
 use Throwable;
 
 final class EmailVerificationController extends Controller
 {
     /**
-     * نمایش صفحه راهنمای تأیید ایمیل
+     * Display email verification instructions.
      */
     public function showRequired(): Response
     {
@@ -28,12 +27,46 @@ final class EmailVerificationController extends Controller
     }
 
     /**
-     * تأیید ایمیل با استفاده از توکن
+     * Display the email verification confirmation page.
      */
-    public function verify(): Response
+    public function showConfirmation(): Response
     {
         $token = trim(
             (string) $this->request->query('token', '')
+        );
+
+        if (
+            strlen($token) !== 64 ||
+            !ctype_xdigit($token)
+        ) {
+            $_SESSION['errors'] = [
+                'لینک تأیید ایمیل نامعتبر است.'
+            ];
+
+            return Response::redirect(
+                '/verification-required'
+            );
+        }
+
+        return $this->view(
+            'pages.auth.verify-email',
+            ['token' => $token]
+        );
+    }
+
+    /**
+     * Verify email through a CSRF-protected POST request.
+     */
+    public function verify(): Response
+    {
+        $methodError = $this->requirePost();
+
+        if ($methodError !== null) {
+            return $methodError;
+        }
+
+        $token = trim(
+            (string) $this->request->post('token', '')
         );
 
         if (
@@ -66,17 +99,7 @@ final class EmailVerificationController extends Controller
                 );
             }
 
-            if (
-                isset($_SESSION['pending_verification']['token']) &&
-                is_string($_SESSION['pending_verification']['token']) &&
-                hash_equals(
-                    $_SESSION['pending_verification']['token'],
-                    $token
-                )
-            ) {
-                unset($_SESSION['pending_verification']);
-            }
-
+            unset($_SESSION['pending_verification']);
             unset($_SESSION['errors']);
 
             $_SESSION['flash_message'] =
@@ -85,7 +108,6 @@ final class EmailVerificationController extends Controller
             return Response::redirect('/login');
 
         } catch (PDOException $exception) {
-
             error_log(
                 '[EmailVerificationController] Database error: ' .
                 $exception->getMessage()
@@ -99,8 +121,7 @@ final class EmailVerificationController extends Controller
                 '/verification-required'
             );
 
-        } catch (RuntimeException $exception) {
-
+        } catch (Throwable $exception) {
             error_log(
                 '[EmailVerificationController] Verification error: ' .
                 $exception->getMessage()
@@ -108,21 +129,6 @@ final class EmailVerificationController extends Controller
 
             $_SESSION['errors'] = [
                 'تأیید ایمیل با مشکل مواجه شد. لطفاً دوباره تلاش کنید.'
-            ];
-
-            return Response::redirect(
-                '/verification-required'
-            );
-
-        } catch (Throwable $exception) {
-
-            error_log(
-                '[EmailVerificationController] Unexpected error: ' .
-                $exception->getMessage()
-            );
-
-            $_SESSION['errors'] = [
-                'خطای غیرمنتظره‌ای رخ داد. لطفاً بعداً تلاش کنید.'
             ];
 
             return Response::redirect(
