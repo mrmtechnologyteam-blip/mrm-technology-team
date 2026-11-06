@@ -22,7 +22,8 @@ final class PasswordResetService
 
     public function issueToken(
         int $userId,
-        int $validMinutes = 30
+        int $validMinutes = 30,
+        bool $replaceExisting = true
     ): string {
         if ($userId <= 0) {
             throw new RuntimeException('Invalid user ID.');
@@ -44,17 +45,25 @@ final class PasswordResetService
             time() + ($validMinutes * 60)
         );
 
+        if ($this->db->inTransaction()) {
+            throw new RuntimeException(
+                'A database transaction is already active.'
+            );
+        }
+
         $this->db->beginTransaction();
 
         try {
-            $delete = $this->db->prepare(
-                'DELETE FROM password_reset_tokens
-                 WHERE user_id = :user_id'
-            );
+            if ($replaceExisting) {
+                $delete = $this->db->prepare(
+                    'DELETE FROM password_reset_tokens
+                     WHERE user_id = :user_id'
+                );
 
-            $delete->execute([
-                'user_id' => $userId,
-            ]);
+                $delete->execute([
+                    'user_id' => $userId,
+                ]);
+            }
 
             $insert = $this->db->prepare(
                 'INSERT INTO password_reset_tokens
@@ -80,6 +89,41 @@ final class PasswordResetService
 
             throw $exception;
         }
+    }
+
+    /**
+     * Delete previous reset tokens after successful email delivery.
+     */
+    public function cleanupOtherTokens(
+        int $userId,
+        string $keepToken
+    ): int {
+        if ($userId <= 0) {
+            throw new RuntimeException('Invalid user ID.');
+        }
+
+        if (
+            strlen($keepToken) !== 64 ||
+            !ctype_xdigit($keepToken)
+        ) {
+            throw new RuntimeException('Invalid reset token.');
+        }
+
+        $keepHash = hash('sha256', $keepToken);
+
+        $stmt = $this->db->prepare(
+            'DELETE FROM password_reset_tokens
+             WHERE user_id = :user_id
+               AND token_hash <> :token_hash
+               AND used_at IS NULL'
+        );
+
+        $stmt->execute([
+            'user_id' => $userId,
+            'token_hash' => $keepHash,
+        ]);
+
+        return $stmt->rowCount();
     }
 
     public function resetPassword(
