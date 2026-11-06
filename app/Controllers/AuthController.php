@@ -16,7 +16,7 @@ use Throwable;
 final class AuthController extends Controller
 {
     /**
-     * نمایش صفحه ورود
+     * Display login page.
      */
     public function showLogin(): Response
     {
@@ -32,15 +32,34 @@ final class AuthController extends Controller
     }
 
     /**
-     * پردازش ورود کاربر
+     * Process user login.
      */
     public function login(): Response
     {
-        if (!$this->request->isMethod('POST')) {
-            return Response::text(
-                'Method Not Allowed',
-                405
-            )->setHeader('Allow', 'POST');
+        $methodError = $this->requirePost();
+
+        if ($methodError !== null) {
+            return $methodError;
+        }
+
+        if (!empty($_SESSION['logged_in'])) {
+            return Response::redirect('/dashboard');
+        }
+
+        $csrfToken = (string) $this->request->post(
+            '_csrf_token',
+            ''
+        );
+
+        $csrfValid = function_exists('verify_csrf_token')
+            && verify_csrf_token($csrfToken);
+
+        if (!$csrfValid) {
+            $_SESSION['errors'] = [
+                'درخواست نامعتبر یا منقضی شده است. لطفاً دوباره تلاش کنید.'
+            ];
+
+            return Response::redirect('/login');
         }
 
         $email = trim(
@@ -86,7 +105,6 @@ final class AuthController extends Controller
             return Response::redirect('/dashboard');
 
         } catch (PDOException $exception) {
-
             error_log(
                 '[AuthController] Database error: ' .
                 $exception->getMessage()
@@ -98,8 +116,10 @@ final class AuthController extends Controller
 
             return Response::redirect('/login');
 
-        } catch (InvalidArgumentException | RuntimeException $exception) {
-
+        } catch (
+            InvalidArgumentException |
+            RuntimeException $exception
+        ) {
             $_SESSION['errors'] = [
                 $exception->getMessage(),
             ];
@@ -107,7 +127,6 @@ final class AuthController extends Controller
             return Response::redirect('/login');
 
         } catch (Throwable $exception) {
-
             error_log(
                 '[AuthController] Login error: ' .
                 $exception->getMessage()
@@ -122,15 +141,29 @@ final class AuthController extends Controller
     }
 
     /**
-     * خروج کاربر
+     * Logout user.
      */
     public function logout(): Response
     {
-        if (!$this->request->isMethod('POST')) {
+        $methodError = $this->requirePost();
+
+        if ($methodError !== null) {
+            return $methodError;
+        }
+
+        $csrfToken = (string) $this->request->post(
+            '_csrf_token',
+            ''
+        );
+
+        $csrfValid = function_exists('verify_csrf_token')
+            && verify_csrf_token($csrfToken);
+
+        if (!$csrfValid) {
             return Response::text(
-                'Method Not Allowed',
-                405
-            )->setHeader('Allow', 'POST');
+                'درخواست نامعتبر است. لطفاً صفحه را تازه‌سازی کنید.',
+                419
+            );
         }
 
         try {
@@ -145,7 +178,6 @@ final class AuthController extends Controller
             return Response::redirect('/');
 
         } catch (Throwable $exception) {
-
             error_log(
                 '[AuthController] Logout error: ' .
                 $exception->getMessage()
