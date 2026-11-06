@@ -139,7 +139,13 @@ $router->post(
     }
 );
 
-// Email verification information page
+/*
+|--------------------------------------------------------------------------
+| Email Verification
+|--------------------------------------------------------------------------
+*/
+
+// Verification instructions
 $router->get(
     '/verification-required',
     function (Request $request, array $parameters): Response {
@@ -152,8 +158,21 @@ $router->get(
     }
 );
 
-// Verify email using token
+// Display confirmation page (GET does not consume token)
 $router->get(
+    '/verify-email',
+    function (Request $request, array $parameters): Response {
+        $controller = new EmailVerificationController(
+            $request,
+            $parameters
+        );
+
+        return $controller->showConfirmation();
+    }
+);
+
+// Verify email (POST)
+$router->post(
     '/verify-email',
     function (Request $request, array $parameters): Response {
         $controller = new EmailVerificationController(
