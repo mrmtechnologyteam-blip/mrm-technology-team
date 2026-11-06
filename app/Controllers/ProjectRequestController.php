@@ -9,6 +9,7 @@ use App\Http\Response;
 use App\Models\Project;
 use App\Services\ProjectQuestionnaireService;
 use InvalidArgumentException;
+use PDO;
 use PDOException;
 use RuntimeException;
 use Throwable;
@@ -165,6 +166,9 @@ final class ProjectRequestController extends Controller
 
         $userId = $this->currentUserId();
 
+        $db = null;
+        $transactionStarted = false;
+
         try {
             $db = db();
 
@@ -310,6 +314,19 @@ final class ProjectRequestController extends Controller
                 );
             }
 
+            /*
+             * شروع تراکنش مشترک:
+             * ایجاد پروژه و ذخیره پاسخ‌ها با هم انجام می‌شوند.
+             */
+            if ($db->inTransaction()) {
+                throw new RuntimeException(
+                    'یک تراکنش غیرمنتظره از قبل فعال است.'
+                );
+            }
+
+            $db->beginTransaction();
+            $transactionStarted = true;
+
             // ایجاد پروژه
             $projectModel = new Project($db);
 
@@ -325,9 +342,7 @@ final class ProjectRequestController extends Controller
                 'expected_delivery_date' => $deliveryDate,
             ]);
 
-            // همیشه سرویس فراخوانی می‌شود؛
-            // حتی اگر هیچ پاسخی ارسال نشده باشد.
-            // در این حالت نیز پرسش‌های اجباری بررسی خواهند شد.
+            // ذخیره و اعتبارسنجی پرسش‌نامه
             $questionnaire = new ProjectQuestionnaireService($db);
 
             $questionnaire->saveAnswers(
@@ -336,6 +351,10 @@ final class ProjectRequestController extends Controller
                 $answers
             );
 
+            // تأیید نهایی هر دو عملیات
+            $db->commit();
+            $transactionStarted = false;
+
             $this->flash()->success(
                 'درخواست پروژه شما با موفقیت ثبت شد.'
             );
@@ -343,6 +362,14 @@ final class ProjectRequestController extends Controller
             return $this->redirect('/dashboard');
 
         } catch (InvalidArgumentException $exception) {
+            if (
+                $transactionStarted &&
+                $db instanceof PDO &&
+                $db->inTransaction()
+            ) {
+                $db->rollBack();
+            }
+
             $this->flash()->error(
                 $exception->getMessage()
             );
@@ -350,6 +377,14 @@ final class ProjectRequestController extends Controller
             return $this->redirect('/projects/create');
 
         } catch (RuntimeException $exception) {
+            if (
+                $transactionStarted &&
+                $db instanceof PDO &&
+                $db->inTransaction()
+            ) {
+                $db->rollBack();
+            }
+
             error_log(
                 '[ProjectRequestController::store] ' .
                 $exception->getMessage()
@@ -362,6 +397,14 @@ final class ProjectRequestController extends Controller
             return $this->redirect('/projects/create');
 
         } catch (PDOException $exception) {
+            if (
+                $transactionStarted &&
+                $db instanceof PDO &&
+                $db->inTransaction()
+            ) {
+                $db->rollBack();
+            }
+
             error_log(
                 '[ProjectRequestController::store] Database error: ' .
                 $exception->getMessage()
@@ -374,6 +417,14 @@ final class ProjectRequestController extends Controller
             return $this->redirect('/projects/create');
 
         } catch (Throwable $exception) {
+            if (
+                $transactionStarted &&
+                $db instanceof PDO &&
+                $db->inTransaction()
+            ) {
+                $db->rollBack();
+            }
+
             error_log(
                 '[ProjectRequestController::store] Unexpected error: ' .
                 $exception->getMessage()
