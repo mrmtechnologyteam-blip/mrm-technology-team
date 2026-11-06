@@ -24,14 +24,23 @@ final class ProjectQuestionnaireService
         array $answers
     ): int {
         if ($projectId <= 0 || $userId <= 0) {
-            throw new InvalidArgumentException('Invalid project or user ID.');
+            throw new InvalidArgumentException(
+                'Invalid project or user ID.'
+            );
         }
 
         if (count($answers) > 500) {
-            throw new InvalidArgumentException('Too many answers submitted.');
+            throw new InvalidArgumentException(
+                'Too many answers submitted.'
+            );
         }
 
-        $this->db->beginTransaction();
+        // جلوگیری از شروع تراکنش تودرتو
+        $ownsTransaction = !$this->db->inTransaction();
+
+        if ($ownsTransaction) {
+            $this->db->beginTransaction();
+        }
 
         try {
             $projectStmt = $this->db->prepare(
@@ -78,7 +87,10 @@ final class ProjectQuestionnaireService
                        category_id = :category_id
                        OR category_id IS NULL
                    )
-                 ORDER BY section_number ASC, question_number ASC, id ASC'
+                 ORDER BY
+                    section_number ASC,
+                    question_number ASC,
+                    id ASC'
             );
 
             $questionStmt->execute([
@@ -98,7 +110,10 @@ final class ProjectQuestionnaireService
             foreach ($answers as $questionId => $answer) {
                 if (
                     !is_int($questionId) &&
-                    !(is_string($questionId) && ctype_digit($questionId))
+                    !(
+                        is_string($questionId) &&
+                        ctype_digit($questionId)
+                    )
                 ) {
                     throw new InvalidArgumentException(
                         'Invalid question ID.'
@@ -125,6 +140,7 @@ final class ProjectQuestionnaireService
                 $normalizedAnswers[$questionId] = $answer;
             }
 
+            // دریافت پاسخ‌های قبلی
             $existingStmt = $this->db->prepare(
                 'SELECT question_id, answer_value
                  FROM project_answers
@@ -137,12 +153,17 @@ final class ProjectQuestionnaireService
 
             $finalAnswers = [];
 
-            foreach ($existingStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            foreach (
+                $existingStmt->fetchAll(PDO::FETCH_ASSOC)
+                as $row
+            ) {
                 $questionId = (int) $row['question_id'];
 
                 if (isset($questionMap[$questionId])) {
                     $finalAnswers[$questionId] =
-                        $this->decodeStoredAnswer($row['answer_value']);
+                        $this->decodeStoredAnswer(
+                            $row['answer_value']
+                        );
                 }
             }
 
@@ -160,7 +181,7 @@ final class ProjectQuestionnaireService
                 }
             }
 
-            // پاسخ به پرسش مخفی نباید پذیرفته شود.
+            // جلوگیری از ثبت پاسخ برای پرسش مخفی
             foreach ($normalizedAnswers as $questionId => $answer) {
                 if (
                     !$this->isQuestionVisible(
@@ -175,7 +196,7 @@ final class ProjectQuestionnaireService
                 }
             }
 
-            // حذف پاسخ پرسش‌هایی که به دلیل تغییر پاسخ والد مخفی شده‌اند.
+            // حذف پاسخ پرسش‌هایی که مخفی شده‌اند
             do {
                 $changed = false;
 
@@ -199,7 +220,7 @@ final class ProjectQuestionnaireService
                 }
             } while ($changed);
 
-            // بررسی تمام پرسش‌های الزامی قابل نمایش
+            // بررسی تمام پرسش‌های اجباری قابل نمایش
             foreach ($questionMap as $questionId => $question) {
                 if ((int) $question['is_required'] !== 1) {
                     continue;
@@ -225,7 +246,7 @@ final class ProjectQuestionnaireService
                 }
             }
 
-            // جایگزینی کامل پاسخ‌ها در یک تراکنش
+            // حذف پاسخ‌های قبلی
             $deleteStmt = $this->db->prepare(
                 'DELETE FROM project_answers
                  WHERE project_id = :project_id'
@@ -235,6 +256,7 @@ final class ProjectQuestionnaireService
                 'project_id' => $projectId,
             ]);
 
+            // ذخیره پاسخ‌های نهایی
             $insertStmt = $this->db->prepare(
                 'INSERT INTO project_answers
                     (project_id, question_id, answer_value)
@@ -259,11 +281,19 @@ final class ProjectQuestionnaireService
                 $savedCount++;
             }
 
-            $this->db->commit();
+            // فقط مالک تراکنش اجازه commit دارد
+            if ($ownsTransaction) {
+                $this->db->commit();
+            }
 
             return $savedCount;
+
         } catch (Throwable $exception) {
-            if ($this->db->inTransaction()) {
+            // فقط تراکنشی که خود سرویس آغاز کرده لغو می‌شود
+            if (
+                $ownsTransaction &&
+                $this->db->inTransaction()
+            ) {
                 $this->db->rollBack();
             }
 
