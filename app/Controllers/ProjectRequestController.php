@@ -90,6 +90,7 @@ final class ProjectRequestController extends Controller
                 $sectionNumber = (int) $question['section_number'];
 
                 $question['id'] = (int) $question['id'];
+
                 $question['parent_question_id'] =
                     $question['parent_question_id'] === null
                         ? null
@@ -190,13 +191,16 @@ final class ProjectRequestController extends Controller
                 FILTER_VALIDATE_INT
             );
 
-            $title = trim((string) $this->input('project_title', ''));
+            $title = trim(
+                (string) $this->input('project_title', '')
+            );
 
             $description = trim(
                 (string) $this->input('project_description', '')
             );
 
             $budget = $this->input('budget');
+
             $currency = trim(
                 (string) $this->input('budget_currency', 'USD')
             );
@@ -219,7 +223,10 @@ final class ProjectRequestController extends Controller
                 );
             }
 
-            if ($title === '' || mb_strlen($title, 'UTF-8') > 200) {
+            if (
+                $title === '' ||
+                mb_strlen($title, 'UTF-8') > 200
+            ) {
                 throw new InvalidArgumentException(
                     'عنوان پروژه الزامی است و نباید بیشتر از ۲۰۰ حرف باشد.'
                 );
@@ -244,10 +251,66 @@ final class ProjectRequestController extends Controller
                 $budget = null;
             }
 
+            if ($budget !== null) {
+                if (
+                    !is_numeric($budget) ||
+                    !is_finite((float) $budget) ||
+                    (float) $budget < 0
+                ) {
+                    throw new InvalidArgumentException(
+                        'مبلغ بودجه معتبر نیست.'
+                    );
+                }
+
+                $budget = (string) $budget;
+            }
+
             if ($deliveryDate === '') {
                 $deliveryDate = null;
             }
 
+            if ($deliveryDate !== null) {
+                if (!is_string($deliveryDate)) {
+                    throw new InvalidArgumentException(
+                        'تاریخ تحویل معتبر نیست.'
+                    );
+                }
+
+                $date = \DateTimeImmutable::createFromFormat(
+                    '!Y-m-d',
+                    $deliveryDate
+                );
+
+                if (
+                    !$date ||
+                    $date->format('Y-m-d') !== $deliveryDate
+                ) {
+                    throw new InvalidArgumentException(
+                        'فرمت تاریخ تحویل معتبر نیست.'
+                    );
+                }
+            }
+
+            // بررسی فعال‌بودن دسته‌بندی
+            $categoryCheck = $db->prepare(
+                "SELECT id
+                 FROM project_categories
+                 WHERE id = :id
+                   AND is_active = 1
+                 LIMIT 1"
+            );
+
+            $categoryCheck->execute([
+                'id' => $categoryId,
+            ]);
+
+            if (!$categoryCheck->fetchColumn()) {
+                throw new InvalidArgumentException(
+                    'دسته‌بندی انتخاب‌شده معتبر یا فعال نیست.'
+                );
+            }
+
+            // ایجاد پروژه
             $projectModel = new Project($db);
 
             $projectId = $projectModel->create([
@@ -262,15 +325,16 @@ final class ProjectRequestController extends Controller
                 'expected_delivery_date' => $deliveryDate,
             ]);
 
-            if ($answers !== []) {
-                $questionnaire = new ProjectQuestionnaireService($db);
+            // همیشه سرویس فراخوانی می‌شود؛
+            // حتی اگر هیچ پاسخی ارسال نشده باشد.
+            // در این حالت نیز پرسش‌های اجباری بررسی خواهند شد.
+            $questionnaire = new ProjectQuestionnaireService($db);
 
-                $questionnaire->saveAnswers(
-                    $projectId,
-                    $userId,
-                    $answers
-                );
-            }
+            $questionnaire->saveAnswers(
+                $projectId,
+                $userId,
+                $answers
+            );
 
             $this->flash()->success(
                 'درخواست پروژه شما با موفقیت ثبت شد.'
@@ -279,7 +343,9 @@ final class ProjectRequestController extends Controller
             return $this->redirect('/dashboard');
 
         } catch (InvalidArgumentException $exception) {
-            $this->flash()->error($exception->getMessage());
+            $this->flash()->error(
+                $exception->getMessage()
+            );
 
             return $this->redirect('/projects/create');
 
