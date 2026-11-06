@@ -87,7 +87,6 @@ $router->get(
 |--------------------------------------------------------------------------
 */
 
-// Login page
 $router->get(
     '/login',
     function (Request $request, array $parameters): Response {
@@ -100,7 +99,6 @@ $router->get(
     }
 );
 
-// Process login
 $router->post(
     '/login',
     function (Request $request, array $parameters): Response {
@@ -113,7 +111,6 @@ $router->post(
     }
 );
 
-// Registration page
 $router->get(
     '/register',
     function (Request $request, array $parameters): Response {
@@ -126,7 +123,6 @@ $router->get(
     }
 );
 
-// Process registration
 $router->post(
     '/register',
     function (Request $request, array $parameters): Response {
@@ -145,7 +141,6 @@ $router->post(
 |--------------------------------------------------------------------------
 */
 
-// Verification instructions
 $router->get(
     '/verification-required',
     function (Request $request, array $parameters): Response {
@@ -158,7 +153,18 @@ $router->get(
     }
 );
 
-// Display confirmation page (GET does not consume token)
+$router->post(
+    '/resend-verification',
+    function (Request $request, array $parameters): Response {
+        $controller = new EmailVerificationController(
+            $request,
+            $parameters
+        );
+
+        return $controller->resendVerification();
+    }
+);
+
 $router->get(
     '/verify-email',
     function (Request $request, array $parameters): Response {
@@ -171,7 +177,6 @@ $router->get(
     }
 );
 
-// Verify email (POST)
 $router->post(
     '/verify-email',
     function (Request $request, array $parameters): Response {
@@ -190,7 +195,6 @@ $router->post(
 |--------------------------------------------------------------------------
 */
 
-// Forgot password page
 $router->get(
     '/forgot-password',
     function (Request $request, array $parameters): Response {
@@ -203,7 +207,6 @@ $router->get(
     }
 );
 
-// Send password reset link
 $router->post(
     '/forgot-password',
     function (Request $request, array $parameters): Response {
@@ -216,7 +219,6 @@ $router->post(
     }
 );
 
-// Reset password page
 $router->get(
     '/reset-password',
     function (Request $request, array $parameters): Response {
@@ -229,7 +231,6 @@ $router->get(
     }
 );
 
-// Save new password
 $router->post(
     '/reset-password',
     function (Request $request, array $parameters): Response {
