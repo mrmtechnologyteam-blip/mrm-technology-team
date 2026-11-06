@@ -8,6 +8,7 @@ use App\Controllers\EmailVerificationController;
 use App\Controllers\DashboardController;
 use App\Controllers\AdminDashboardController;
 use App\Controllers\ForgotPasswordController;
+use App\Controllers\ProjectRequestController;
 use App\Http\Request;
 use App\Http\Response;
 use App\Http\Router;
@@ -60,6 +61,36 @@ $router->get(
         );
 
         return $controller->index();
+    }
+);
+
+/*
+|--------------------------------------------------------------------------
+| Project Request
+|--------------------------------------------------------------------------
+*/
+
+$router->get(
+    '/projects/create',
+    function (Request $request, array $parameters): Response {
+        $controller = new ProjectRequestController(
+            $request,
+            $parameters
+        );
+
+        return $controller->create();
+    }
+);
+
+$router->post(
+    '/projects',
+    function (Request $request, array $parameters): Response {
+        $controller = new ProjectRequestController(
+            $request,
+            $parameters
+        );
+
+        return $controller->store();
     }
 );
 
