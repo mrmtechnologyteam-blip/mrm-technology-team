@@ -36,6 +36,19 @@ final class ForgotPasswordController extends Controller
             return Response::redirect('/dashboard');
         }
 
+        $csrfToken = (string) $this->post('_csrf_token', '');
+
+        if (
+            !function_exists('verify_csrf_token') ||
+            !verify_csrf_token($csrfToken)
+        ) {
+            $_SESSION['errors'] = [
+                'درخواست نامعتبر یا منقضی شده است. لطفاً دوباره تلاش کنید.',
+            ];
+
+            return Response::redirect('/forgot-password');
+        }
+
         $email = trim((string) $this->post('email', ''));
 
         $_SESSION['old'] = [
@@ -204,7 +217,6 @@ final class ForgotPasswordController extends Controller
             return Response::redirect('/forgot-password');
 
         } catch (Throwable $exception) {
-
             error_log(
                 '[ForgotPasswordController] Password recovery request failed: '
                 . $exception->getMessage()
@@ -258,6 +270,19 @@ final class ForgotPasswordController extends Controller
 
         if ($this->isAuthenticated()) {
             return Response::redirect('/dashboard');
+        }
+
+        $csrfToken = (string) $this->post('_csrf_token', '');
+
+        if (
+            !function_exists('verify_csrf_token') ||
+            !verify_csrf_token($csrfToken)
+        ) {
+            $_SESSION['errors'] = [
+                'درخواست نامعتبر یا منقضی شده است. لطفاً دوباره تلاش کنید.',
+            ];
+
+            return Response::redirect('/forgot-password');
         }
 
         $token = trim(
@@ -338,7 +363,6 @@ final class ForgotPasswordController extends Controller
             return Response::redirect('/login');
 
         } catch (PDOException $exception) {
-
             error_log(
                 '[ForgotPasswordController] Database error: '
                 . $exception->getMessage()
@@ -353,7 +377,6 @@ final class ForgotPasswordController extends Controller
             );
 
         } catch (RuntimeException $exception) {
-
             error_log(
                 '[ForgotPasswordController] Password reset service error: '
                 . $exception->getMessage()
@@ -366,7 +389,6 @@ final class ForgotPasswordController extends Controller
             return Response::redirect('/forgot-password');
 
         } catch (Throwable $exception) {
-
             error_log(
                 '[ForgotPasswordController] Unexpected reset error: '
                 . $exception->getMessage()
