@@ -631,6 +631,22 @@ document.addEventListener('DOMContentLoaded', function () {
     const categoryGroups = document.querySelectorAll('.category-questions');
     const form = document.getElementById('projectForm');
 
+    /*
+     * ذخیره وضعیت اولیه required برای تمام فیلدها.
+     * این مقدار در طول تغییر دسته‌ها و پرسش‌های شرطی حفظ می‌شود.
+     */
+    form.querySelectorAll('input, select, textarea').forEach(function (field) {
+        field.dataset.initialRequired = field.required ? 'true' : 'false';
+    });
+
+    function setFieldState(field, disabled) {
+        field.disabled = disabled;
+
+        field.required =
+            !disabled &&
+            field.dataset.initialRequired === 'true';
+    }
+
     function updateCategories() {
         const selectedCategory = categorySelect.value;
 
@@ -644,11 +660,7 @@ document.addEventListener('DOMContentLoaded', function () {
             group.hidden = !visible;
 
             group.querySelectorAll('input, select, textarea').forEach(function (field) {
-                field.disabled = !visible;
-
-                if (!visible) {
-                    field.required = false;
-                }
+                setFieldState(field, !visible);
             });
         });
 
@@ -714,10 +726,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function setQuestionDisabled(question, disabled) {
         question.querySelectorAll('input, select, textarea').forEach(function (field) {
-            field.disabled = disabled;
+            setFieldState(field, disabled);
 
             if (disabled) {
-                field.required = false;
                 field.checked = false;
 
                 if (field.type !== 'radio' && field.type !== 'checkbox') {
