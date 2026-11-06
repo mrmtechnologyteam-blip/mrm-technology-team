@@ -15,23 +15,15 @@ use Throwable;
 
 final class EmailVerificationController extends Controller
 {
-    /**
-     * Display email verification instructions.
-     */
     public function showRequired(): Response
     {
         if (!empty($_SESSION['logged_in'])) {
             return Response::redirect('/dashboard');
         }
 
-        return $this->view(
-            'pages.auth.verification-required'
-        );
+        return $this->view('pages.auth.verification-required');
     }
 
-    /**
-     * Display the email verification confirmation page.
-     */
     public function showConfirmation(): Response
     {
         $token = trim(
@@ -46,9 +38,7 @@ final class EmailVerificationController extends Controller
                 'لینک تأیید ایمیل نامعتبر است.'
             ];
 
-            return Response::redirect(
-                '/verification-required'
-            );
+            return Response::redirect('/verification-required');
         }
 
         return $this->view(
@@ -57,9 +47,6 @@ final class EmailVerificationController extends Controller
         );
     }
 
-    /**
-     * Resend verification email.
-     */
     public function resendVerification(): Response
     {
         $methodError = $this->requirePost();
@@ -85,9 +72,7 @@ final class EmailVerificationController extends Controller
                 'درخواست نامعتبر یا منقضی شده است. لطفاً دوباره تلاش کنید.'
             ];
 
-            return Response::redirect(
-                '/verification-required'
-            );
+            return Response::redirect('/verification-required');
         }
 
         $pending = $_SESSION['pending_verification'] ?? null;
@@ -115,9 +100,7 @@ final class EmailVerificationController extends Controller
                 'اطلاعات حساب کاربری معتبر نیست.'
             ];
 
-            return Response::redirect(
-                '/verification-required'
-            );
+            return Response::redirect('/verification-required');
         }
 
         try {
@@ -171,12 +154,12 @@ final class EmailVerificationController extends Controller
 
             $verificationService = new EmailVerificationService($db);
 
+            // توکن قبلی تا زمان ارسال موفق ایمیل حفظ می‌شود.
             $token = $verificationService->issueToken(
                 $userId,
-                60
+                60,
+                false
             );
-
-            $_SESSION['pending_verification']['token'] = $token;
 
             $verificationUrl = $appUrl
                 . '/verify-email?token='
@@ -274,19 +257,38 @@ final class EmailVerificationController extends Controller
 
             $mailService = new MailService();
 
-            $mailService->send(
+            $sent = $mailService->send(
                 $email,
                 'تأیید ایمیل | MRM Technology Team',
                 $htmlBody,
                 $plainBody
             );
 
+            if ($sent !== true) {
+                throw new RuntimeException(
+                    'Verification email delivery failed.'
+                );
+            }
+
+            // فقط پس از ارسال موفق، توکن‌های قبلی حذف می‌شوند.
+            try {
+                $verificationService->cleanupOtherTokens(
+                    $userId,
+                    $token
+                );
+            } catch (Throwable $cleanupException) {
+                error_log(
+                    '[EmailVerificationController] Token cleanup failed: '
+                    . $cleanupException->getMessage()
+                );
+            }
+
+            $_SESSION['pending_verification']['token'] = $token;
+
             $_SESSION['flash_message'] =
                 'لینک تأیید ایمیل با موفقیت ارسال شد. صندوق ورودی و پوشه Spam را بررسی کنید.';
 
-            return Response::redirect(
-                '/verification-required'
-            );
+            return Response::redirect('/verification-required');
 
         } catch (Throwable $exception) {
             error_log(
@@ -298,15 +300,10 @@ final class EmailVerificationController extends Controller
                 'ارسال ایمیل تأیید انجام نشد. تنظیمات سرویس ایمیل را بررسی کنید.'
             ];
 
-            return Response::redirect(
-                '/verification-required'
-            );
+            return Response::redirect('/verification-required');
         }
     }
 
-    /**
-     * Verify email through a CSRF-protected POST request.
-     */
     public function verify(): Response
     {
         $methodError = $this->requirePost();
@@ -328,9 +325,7 @@ final class EmailVerificationController extends Controller
                 'درخواست نامعتبر یا منقضی شده است. لطفاً دوباره تلاش کنید.'
             ];
 
-            return Response::redirect(
-                '/verification-required'
-            );
+            return Response::redirect('/verification-required');
         }
 
         $token = trim(
@@ -345,15 +340,11 @@ final class EmailVerificationController extends Controller
                 'لینک تأیید ایمیل نامعتبر است.'
             ];
 
-            return Response::redirect(
-                '/verification-required'
-            );
+            return Response::redirect('/verification-required');
         }
 
         try {
-            $verificationService = new EmailVerificationService(
-                db()
-            );
+            $verificationService = new EmailVerificationService(db());
 
             $verified = $verificationService->verify($token);
 
@@ -362,9 +353,7 @@ final class EmailVerificationController extends Controller
                     'لینک تأیید ایمیل نامعتبر یا منقضی شده است.'
                 ];
 
-                return Response::redirect(
-                    '/verification-required'
-                );
+                return Response::redirect('/verification-required');
             }
 
             unset(
@@ -387,9 +376,7 @@ final class EmailVerificationController extends Controller
                 'ارتباط با پایگاه داده برقرار نشد. لطفاً بعداً تلاش کنید.'
             ];
 
-            return Response::redirect(
-                '/verification-required'
-            );
+            return Response::redirect('/verification-required');
 
         } catch (Throwable $exception) {
             error_log(
@@ -401,9 +388,7 @@ final class EmailVerificationController extends Controller
                 'تأیید ایمیل با مشکل مواجه شد. لطفاً دوباره تلاش کنید.'
             ];
 
-            return Response::redirect(
-                '/verification-required'
-            );
+            return Response::redirect('/verification-required');
         }
     }
 }
