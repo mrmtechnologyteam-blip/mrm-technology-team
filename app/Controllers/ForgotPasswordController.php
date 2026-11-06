@@ -79,9 +79,11 @@ final class ForgotPasswordController extends Controller
             ) {
                 $resetService = new PasswordResetService($db);
 
+                // توکن قبلی تا ارسال موفق ایمیل حفظ می‌شود.
                 $token = $resetService->issueToken(
                     (int) $user['id'],
-                    30
+                    30,
+                    false
                 );
 
                 $appUrl = rtrim(
@@ -198,12 +200,31 @@ final class ForgotPasswordController extends Controller
 
                 $mailService = new MailService();
 
-                $mailService->send(
+                $sent = $mailService->send(
                     $email,
                     'بازیابی رمز عبور | MRM Technology Team',
                     $htmlBody,
                     $plainBody
                 );
+
+                if ($sent !== true) {
+                    throw new RuntimeException(
+                        'Password reset email delivery failed.'
+                    );
+                }
+
+                // فقط پس از ارسال موفق ایمیل، توکن‌های قبلی حذف می‌شوند.
+                try {
+                    $resetService->cleanupOtherTokens(
+                        (int) $user['id'],
+                        $token
+                    );
+                } catch (Throwable $cleanupException) {
+                    error_log(
+                        '[ForgotPasswordController] Token cleanup failed: '
+                        . $cleanupException->getMessage()
+                    );
+                }
             }
 
             unset(
