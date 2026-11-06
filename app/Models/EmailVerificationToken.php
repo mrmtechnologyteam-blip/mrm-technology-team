@@ -21,7 +21,8 @@ final class EmailVerificationToken
      */
     public function createForUser(
         int $userId,
-        int $validMinutes = 60
+        int $validMinutes = 60,
+        bool $replaceExisting = true
     ): string {
         if ($userId <= 0) {
             throw new InvalidArgumentException('Invalid user ID.');
@@ -40,15 +41,17 @@ final class EmailVerificationToken
         $this->db->beginTransaction();
 
         try {
-            $delete = $this->db->prepare(
-                'DELETE FROM email_verification_tokens
-                 WHERE user_id = :user_id
-                   AND used_at IS NULL'
-            );
+            if ($replaceExisting) {
+                $delete = $this->db->prepare(
+                    'DELETE FROM email_verification_tokens
+                     WHERE user_id = :user_id
+                       AND used_at IS NULL'
+                );
 
-            $delete->execute([
-                'user_id' => $userId
-            ]);
+                $delete->execute([
+                    'user_id' => $userId
+                ]);
+            }
 
             $insert = $this->db->prepare(
                 'INSERT INTO email_verification_tokens
@@ -74,6 +77,43 @@ final class EmailVerificationToken
 
             throw $exception;
         }
+    }
+
+    /**
+     * Remove previous unused tokens after a new email is sent.
+     */
+    public function deleteOtherUnusedTokens(
+        int $userId,
+        string $keepToken
+    ): int {
+        if ($userId <= 0) {
+            return 0;
+        }
+
+        $keepToken = trim($keepToken);
+
+        if (
+            strlen($keepToken) !== 64 ||
+            !ctype_xdigit($keepToken)
+        ) {
+            throw new InvalidArgumentException('Invalid token.');
+        }
+
+        $keepHash = hash('sha256', $keepToken);
+
+        $stmt = $this->db->prepare(
+            'DELETE FROM email_verification_tokens
+             WHERE user_id = :user_id
+               AND used_at IS NULL
+               AND token_hash <> :token_hash'
+        );
+
+        $stmt->execute([
+            'user_id' => $userId,
+            'token_hash' => $keepHash
+        ]);
+
+        return $stmt->rowCount();
     }
 
     /**
