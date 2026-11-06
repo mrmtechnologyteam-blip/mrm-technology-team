@@ -1,10 +1,10 @@
 {
     "name": "mrmtechnologyteam/mrm-technology-team",
-    "description": "MRM Technology Team Project Management Platform",
+    "description": "MRM Technology Team Project Request and Management Platform",
     "type": "project",
     "require": {
         "php": ">=8.1",
-        "phpmailer/phpmailer": "^6.10"
+        "phpmailer/phpmailer": "^6.9"
     },
     "autoload": {
         "psr-4": {
