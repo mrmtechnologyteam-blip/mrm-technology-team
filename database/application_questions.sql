@@ -32,7 +32,12 @@ VALUES
 (@app_category_id,1,3,'اپلیکیشن در کدام حوزه فعالیت خواهد کرد؟','select','["آموزشی","تجاری","خدماتی","سلامت","مالی","اجتماعی","سرگرمی","سایر"]',1),
 (@app_category_id,1,4,'آیا نمونه مشابهی از اپلیکیشن موردنظر شما وجود دارد؟','radio','["بله","خیر","اطمینان ندارم"]',1),
 (@app_category_id,1,5,'نام پیشنهادی اپلیکیشن چیست؟','text',NULL,0),
-(@app_category_id,1,6,'توضیحات تکمیلی درباره ایده اپلیکیشن را بنویسید.','textarea',NULL,0);
+(@app_category_id,1,6,'توضیحات تکمیلی درباره ایده اپلیکیشن را بنویسید.','textarea',NULL,0)
+ON DUPLICATE KEY UPDATE
+    question_text = VALUES(question_text),
+    question_type = VALUES(question_type),
+    options_json = VALUES(options_json),
+    is_required = VALUES(is_required);
 
 -- =========================================
 -- SECTION 2: PLATFORM AND DEVICES
@@ -46,7 +51,12 @@ VALUES
 (@app_category_id,2,3,'اپلیکیشن باید روی چه دستگاه‌هایی اجرا شود؟','checkbox','["موبایل","تبلت","کامپیوتر","سایر"]',1),
 (@app_category_id,2,4,'آیا اپلیکیشن باید روی نسخه‌های قدیمی سیستم‌عامل نیز کار کند؟','radio','["بله","خیر","مهم نیست"]',1),
 (@app_category_id,2,5,'حداقل نسخه Android یا iOS موردنظر شما چیست؟','text',NULL,0),
-(@app_category_id,2,6,'آیا طراحی واکنش‌گرا برای اندازه‌های مختلف صفحه نیاز است؟','radio','["بله","خیر"]',1);
+(@app_category_id,2,6,'آیا طراحی واکنش‌گرا برای اندازه‌های مختلف صفحه نیاز است؟','radio','["بله","خیر"]',1)
+ON DUPLICATE KEY UPDATE
+    question_text = VALUES(question_text),
+    question_type = VALUES(question_type),
+    options_json = VALUES(options_json),
+    is_required = VALUES(is_required);
 
 -- =========================================
 -- SECTION 3: USERS AND ACCOUNTS
@@ -60,7 +70,12 @@ VALUES
 (@app_category_id,3,3,'آیا تأیید شماره موبایل یا ایمیل لازم است؟','checkbox','["تأیید ایمیل","تأیید شماره موبایل","هر دو","هیچ‌کدام"]',1),
 (@app_category_id,3,4,'آیا کاربران باید پروفایل شخصی داشته باشند؟','radio','["بله","خیر"]',1),
 (@app_category_id,3,5,'چه نوع نقش‌هایی در اپلیکیشن وجود داشته باشد؟','checkbox','["مدیر","کاربر عادی","کارمند","مشتری","فروشنده","سایر"]',1),
-(@app_category_id,3,6,'آیا کاربران باید بتوانند رمز عبور خود را بازیابی کنند؟','radio','["بله","خیر"]',1);
+(@app_category_id,3,6,'آیا کاربران باید بتوانند رمز عبور خود را بازیابی کنند؟','radio','["بله","خیر"]',1)
+ON DUPLICATE KEY UPDATE
+    question_text = VALUES(question_text),
+    question_type = VALUES(question_type),
+    options_json = VALUES(options_json),
+    is_required = VALUES(is_required);
 
 -- =========================================
 -- SECTION 4: FEATURES AND FUNCTIONALITY
@@ -74,7 +89,12 @@ VALUES
 (@app_category_id,4,3,'آیا کاربران باید بتوانند اطلاعات یا فایل ارسال کنند؟','checkbox','["تصویر","ویدیو","فایل PDF","اسناد","صدا","خیر"]',1),
 (@app_category_id,4,4,'آیا امکان ثبت، ویرایش و حذف اطلاعات لازم است؟','radio','["بله","خیر"]',1),
 (@app_category_id,4,5,'آیا اپلیکیشن به سیستم پرداخت آنلاین نیاز دارد؟','radio','["بله","خیر","در آینده"]',1),
-(@app_category_id,4,6,'آیا کاربران باید بتوانند با یکدیگر ارتباط برقرار کنند؟','radio','["بله","خیر"]',1);
+(@app_category_id,4,6,'آیا کاربران باید بتوانند با یکدیگر ارتباط برقرار کنند؟','radio','["بله","خیر"]',1)
+ON DUPLICATE KEY UPDATE
+    question_text = VALUES(question_text),
+    question_type = VALUES(question_type),
+    options_json = VALUES(options_json),
+    is_required = VALUES(is_required);
 
 -- =========================================
 -- SECTION 5: DESIGN AND USER EXPERIENCE
@@ -88,7 +108,12 @@ VALUES
 (@app_category_id,5,3,'آیا لوگوی آماده دارید؟','radio','["بله","خیر","نیاز به طراحی دارم"]',1),
 (@app_category_id,5,4,'زبان‌های موردنیاز اپلیکیشن کدام‌اند؟','checkbox','["فارسی","دری","پشتو","انگلیسی","عربی","سایر"]',1),
 (@app_category_id,5,5,'آیا اپلیکیشن باید از حالت تاریک و روشن پشتیبانی کند؟','radio','["بله","خیر"]',1),
-(@app_category_id,5,6,'آیا نمونه طراحی یا اپلیکیشن مرجع دارید؟ آدرس یا توضیحات آن را بنویسید.','textarea',NULL,0);
+(@app_category_id,5,6,'آیا نمونه طراحی یا اپلیکیشن مرجع دارید؟ آدرس یا توضیحات آن را بنویسید.','textarea',NULL,0)
+ON DUPLICATE KEY UPDATE
+    question_text = VALUES(question_text),
+    question_type = VALUES(question_type),
+    options_json = VALUES(options_json),
+    is_required = VALUES(is_required);
 
 -- =========================================
 -- SECTION 6: DATABASE AND BACKEND
@@ -102,7 +127,12 @@ VALUES
 (@app_category_id,6,3,'آیا اپلیکیشن باید اطلاعات را بین دستگاه‌ها همگام‌سازی کند؟','radio','["بله","خیر"]',1),
 (@app_category_id,6,4,'چه نوع اطلاعاتی باید ذخیره شوند؟','textarea',NULL,1),
 (@app_category_id,6,5,'آیا پنل مدیریت برای کنترل اطلاعات نیاز دارید؟','radio','["بله","خیر"]',1),
-(@app_category_id,6,6,'آیا API یا سیستم خارجی باید به اپلیکیشن متصل شود؟','radio','["بله","خیر","نمی‌دانم"]',1);
+(@app_category_id,6,6,'آیا API یا سیستم خارجی باید به اپلیکیشن متصل شود؟','radio','["بله","خیر","نمی‌دانم"]',1)
+ON DUPLICATE KEY UPDATE
+    question_text = VALUES(question_text),
+    question_type = VALUES(question_type),
+    options_json = VALUES(options_json),
+    is_required = VALUES(is_required);
 
 -- =========================================
 -- SECTION 7: SECURITY AND PRIVACY
@@ -116,7 +146,12 @@ VALUES
 (@app_category_id,7,3,'آیا ورود دومرحله‌ای نیاز دارید؟','radio','["بله","خیر","در آینده"]',1),
 (@app_category_id,7,4,'آیا اطلاعات باید رمزگذاری شوند؟','radio','["بله","خیر","نیاز به مشاوره دارم"]',1),
 (@app_category_id,7,5,'آیا تهیه نسخه پشتیبان از اطلاعات لازم است؟','radio','["بله","خیر"]',1),
-(@app_category_id,7,6,'آیا الزامات امنیتی یا حریم خصوصی خاصی دارید؟','textarea',NULL,0);
+(@app_category_id,7,6,'آیا الزامات امنیتی یا حریم خصوصی خاصی دارید؟','textarea',NULL,0)
+ON DUPLICATE KEY UPDATE
+    question_text = VALUES(question_text),
+    question_type = VALUES(question_type),
+    options_json = VALUES(options_json),
+    is_required = VALUES(is_required);
 
 -- =========================================
 -- SECTION 8: NOTIFICATIONS AND INTEGRATIONS
@@ -130,7 +165,12 @@ VALUES
 (@app_category_id,8,3,'آیا اتصال به WhatsApp نیاز دارید؟','radio','["بله","خیر"]',1),
 (@app_category_id,8,4,'آیا اتصال به شبکه‌های اجتماعی لازم است؟','checkbox','["Facebook","Instagram","Telegram","WhatsApp","سایر","خیر"]',1),
 (@app_category_id,8,5,'آیا اتصال به سرویس‌های پرداخت یا بانکی نیاز دارید؟','radio','["بله","خیر"]',1),
-(@app_category_id,8,6,'آیا اتصال به سرویس یا نرم‌افزار دیگری نیاز دارید؟','textarea',NULL,0);
+(@app_category_id,8,6,'آیا اتصال به سرویس یا نرم‌افزار دیگری نیاز دارید؟','textarea',NULL,0)
+ON DUPLICATE KEY UPDATE
+    question_text = VALUES(question_text),
+    question_type = VALUES(question_type),
+    options_json = VALUES(options_json),
+    is_required = VALUES(is_required);
 
 -- =========================================
 -- SECTION 9: TESTING AND DEPLOYMENT
@@ -144,7 +184,12 @@ VALUES
 (@app_category_id,9,3,'اپلیکیشن در کجا منتشر شود؟','checkbox','["Google Play","App Store","وب‌سایت اختصاصی","فقط فایل APK","فعلاً انتشار لازم نیست"]',1),
 (@app_category_id,9,4,'آیا حساب توسعه‌دهنده Google Play یا Apple دارید؟','radio','["بله","خیر","نیاز به راهنمایی دارم"]',1),
 (@app_category_id,9,5,'آیا آموزش استفاده از اپلیکیشن نیاز دارید؟','radio','["بله","خیر"]',1),
-(@app_category_id,9,6,'آیا مستندات فنی و راهنمای نصب لازم دارید؟','radio','["بله","خیر"]',1);
+(@app_category_id,9,6,'آیا مستندات فنی و راهنمای نصب لازم دارید؟','radio','["بله","خیر"]',1)
+ON DUPLICATE KEY UPDATE
+    question_text = VALUES(question_text),
+    question_type = VALUES(question_type),
+    options_json = VALUES(options_json),
+    is_required = VALUES(is_required);
 
 -- =========================================
 -- SECTION 10: BUDGET, TIME AND FINAL DETAILS
@@ -158,7 +203,12 @@ VALUES
 (@app_category_id,10,3,'آیا تاریخ مشخصی برای تحویل پروژه دارید؟','date',NULL,0),
 (@app_category_id,10,4,'آیا پروژه باید در چند مرحله اجرا شود؟','radio','["بله","خیر","نیاز به مشاوره دارم"]',1),
 (@app_category_id,10,5,'آیا فایل، طرح یا سندی برای ارائه دارید؟','radio','["بله","خیر","بعداً ارسال می‌کنم"]',1),
-(@app_category_id,10,6,'توضیحات نهایی و درخواست‌های خاص خود را بنویسید.','textarea',NULL,0);
+(@app_category_id,10,6,'توضیحات نهایی و درخواست‌های خاص خود را بنویسید.','textarea',NULL,0)
+ON DUPLICATE KEY UPDATE
+    question_text = VALUES(question_text),
+    question_type = VALUES(question_type),
+    options_json = VALUES(options_json),
+    is_required = VALUES(is_required);
 
 -- =========================================
 -- END: 60 APPLICATION QUESTIONS
