@@ -65,6 +65,26 @@ final class EmailVerificationController extends Controller
             return $methodError;
         }
 
+        // Validate CSRF token.
+        $csrfToken = (string) $this->request->post(
+            '_csrf_token',
+            ''
+        );
+
+        $csrfValid = function_exists('verify_csrf_token')
+            && verify_csrf_token($csrfToken);
+
+        if (!$csrfValid) {
+            $_SESSION['errors'] = [
+                'درخواست نامعتبر یا منقضی شده است. لطفاً دوباره تلاش کنید.'
+            ];
+
+            return Response::redirect(
+                '/verification-required'
+            );
+        }
+
+        // Validate verification token.
         $token = trim(
             (string) $this->request->post('token', '')
         );
