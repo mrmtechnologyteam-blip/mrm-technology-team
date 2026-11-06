@@ -12,6 +12,10 @@ $email = is_array($pending)
     ? (string) ($pending['email'] ?? '')
     : '';
 
+$userId = is_array($pending)
+    ? (int) ($pending['user_id'] ?? 0)
+    : 0;
+
 $message = $_SESSION['flash_message'] ?? null;
 $errors = $_SESSION['errors'] ?? [];
 
@@ -32,6 +36,8 @@ $emailAvailable = filter_var(
     $email,
     FILTER_VALIDATE_EMAIL
 ) !== false;
+
+$canResend = $emailAvailable && $userId > 0;
 
 if (!is_array($errors)) {
     $errors = [];
@@ -156,6 +162,27 @@ if (!is_array($errors)) {
             padding-right: 20px;
         }
 
+        .resend-form {
+            margin-top: 22px;
+        }
+
+        .resend-button {
+            width: 100%;
+            padding: 14px 20px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #9b20ff, #d45cff);
+            color: #ffffff;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity .2s ease;
+        }
+
+        .resend-button:hover {
+            opacity: .85;
+        }
+
         .back-link {
             display: inline-block;
             margin-top: 25px;
@@ -235,9 +262,32 @@ if (!is_array($errors)) {
         <strong>وضعیت سامانه ارسال ایمیل</strong>
         <br>
         اتصال به سرور ایمیل هنوز تنظیم نشده است.
-        بنابراین در حال حاضر ایمیل تأیید به آدرس بالا ارسال نمی‌شود.
-        پس از راه‌اندازی سرویس ایمیل، لینک تأیید به‌صورت خودکار ارسال خواهد شد.
+        بنابراین در حال حاضر ایمیل تأیید ارسال نمی‌شود.
+        پس از تنظیم SMTP، امکان ارسال لینک تأیید فراهم خواهد شد.
     </div>
+
+    <?php if ($canResend): ?>
+
+        <form
+            class="resend-form"
+            action="/resend-verification"
+            method="POST"
+        >
+            <input
+                type="hidden"
+                name="_csrf_token"
+                value="<?= $escape(csrf_token()) ?>"
+            >
+
+            <button
+                type="submit"
+                class="resend-button"
+            >
+                ارسال مجدد لینک تأیید
+            </button>
+        </form>
+
+    <?php endif; ?>
 
     <a href="/" class="back-link">
         بازگشت به صفحه اصلی
