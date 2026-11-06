@@ -18,15 +18,6 @@ final class ProjectQuestionnaireService
         $this->db = $db;
     }
 
-    /**
-     * ذخیره پاسخ‌های پرسش‌نامه پروژه
-     *
-     * ساختار ورودی:
-     * [
-     *     question_id => answer,
-     *     question_id => [option1, option2]
-     * ]
-     */
     public function saveAnswers(
         int $projectId,
         int $userId,
@@ -43,7 +34,6 @@ final class ProjectQuestionnaireService
         $this->db->beginTransaction();
 
         try {
-            // بررسی مالکیت پروژه و وضعیت آن
             $projectStmt = $this->db->prepare(
                 'SELECT id, category_id, status
                  FROM projects
@@ -61,7 +51,9 @@ final class ProjectQuestionnaireService
             $project = $projectStmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$project) {
-                throw new RuntimeException('Project not found or access denied.');
+                throw new RuntimeException(
+                    'Project not found or access denied.'
+                );
             }
 
             if ($project['status'] !== 'pending') {
@@ -70,9 +62,6 @@ final class ProjectQuestionnaireService
                 );
             }
 
-            $categoryId = (int) $project['category_id'];
-
-            // دریافت پرسش‌های فعال دسته‌بندی پروژه و پرسش‌های عمومی
             $questionStmt = $this->db->prepare(
                 'SELECT
                     id,
@@ -85,12 +74,15 @@ final class ProjectQuestionnaireService
                     is_required
                  FROM project_questions
                  WHERE is_active = 1
-                   AND (category_id = :category_id OR category_id IS NULL)
+                   AND (
+                       category_id = :category_id
+                       OR category_id IS NULL
+                   )
                  ORDER BY section_number ASC, question_number ASC, id ASC'
             );
 
             $questionStmt->execute([
-                'category_id' => $categoryId,
+                'category_id' => (int) $project['category_id'],
             ]);
 
             $questions = $questionStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -101,25 +93,6 @@ final class ProjectQuestionnaireService
                 $questionMap[(int) $question['id']] = $question;
             }
 
-            // دریافت پاسخ‌های قبلی
-            $existingStmt = $this->db->prepare(
-                'SELECT question_id, answer_value
-                 FROM project_answers
-                 WHERE project_id = :project_id'
-            );
-
-            $existingStmt->execute([
-                'project_id' => $projectId,
-            ]);
-
-            $existingAnswers = [];
-
-            foreach ($existingStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-                $existingAnswers[(int) $row['question_id']] =
-                    $this->decodeStoredAnswer($row['answer_value']);
-            }
-
-            // اعتبارسنجی شناسه پرسش‌ها
             $normalizedAnswers = [];
 
             foreach ($answers as $questionId => $answer) {
@@ -127,7 +100,9 @@ final class ProjectQuestionnaireService
                     !is_int($questionId) &&
                     !(is_string($questionId) && ctype_digit($questionId))
                 ) {
-                    throw new InvalidArgumentException('Invalid question ID.');
+                    throw new InvalidArgumentException(
+                        'Invalid question ID.'
+                    );
                 }
 
                 $questionId = (int) $questionId;
@@ -141,22 +116,42 @@ final class ProjectQuestionnaireService
                     );
                 }
 
-                $normalizedAnswers[$questionId] = $answer;
-            }
-
-            // اعتبارسنجی پاسخ‌ها و شرایط پرسش‌ها
-            $finalAnswers = $existingAnswers;
-
-            foreach ($normalizedAnswers as $questionId => $answer) {
-                $question = $questionMap[$questionId];
-
-                if (!$this->isQuestionVisible($question, $finalAnswers, $questionMap)) {
+                if (array_key_exists($questionId, $normalizedAnswers)) {
                     throw new InvalidArgumentException(
-                        'An answer was submitted for a hidden question.'
+                        'Duplicate question answer.'
                     );
                 }
 
-                $validated = $this->validateAnswer($question, $answer);
+                $normalizedAnswers[$questionId] = $answer;
+            }
+
+            $existingStmt = $this->db->prepare(
+                'SELECT question_id, answer_value
+                 FROM project_answers
+                 WHERE project_id = :project_id'
+            );
+
+            $existingStmt->execute([
+                'project_id' => $projectId,
+            ]);
+
+            $finalAnswers = [];
+
+            foreach ($existingStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $questionId = (int) $row['question_id'];
+
+                if (isset($questionMap[$questionId])) {
+                    $finalAnswers[$questionId] =
+                        $this->decodeStoredAnswer($row['answer_value']);
+                }
+            }
+
+            // اعتبارسنجی و اعمال پاسخ‌های جدید
+            foreach ($normalizedAnswers as $questionId => $answer) {
+                $validated = $this->validateAnswer(
+                    $questionMap[$questionId],
+                    $answer
+                );
 
                 if ($validated === null) {
                     unset($finalAnswers[$questionId]);
@@ -165,11 +160,57 @@ final class ProjectQuestionnaireService
                 }
             }
 
-            // بررسی پرسش‌های الزامی قابل نمایش
-            foreach ($questionMap as $questionId => $question) {
+            // پاسخ به پرسش مخفی نباید پذیرفته شود.
+            foreach ($normalizedAnswers as $questionId => $answer) {
                 if (
-                    (int) $question['is_required'] !== 1 ||
-                    !$this->isQuestionVisible($question, $finalAnswers, $questionMap)
+                    !$this->isQuestionVisible(
+                        $questionMap[$questionId],
+                        $finalAnswers,
+                        $questionMap
+                    )
+                ) {
+                    throw new InvalidArgumentException(
+                        'An answer was submitted for a hidden question.'
+                    );
+                }
+            }
+
+            // حذف پاسخ پرسش‌هایی که به دلیل تغییر پاسخ والد مخفی شده‌اند.
+            do {
+                $changed = false;
+
+                foreach ($finalAnswers as $questionId => $answer) {
+                    if (!isset($questionMap[$questionId])) {
+                        unset($finalAnswers[$questionId]);
+                        $changed = true;
+                        continue;
+                    }
+
+                    if (
+                        !$this->isQuestionVisible(
+                            $questionMap[$questionId],
+                            $finalAnswers,
+                            $questionMap
+                        )
+                    ) {
+                        unset($finalAnswers[$questionId]);
+                        $changed = true;
+                    }
+                }
+            } while ($changed);
+
+            // بررسی تمام پرسش‌های الزامی قابل نمایش
+            foreach ($questionMap as $questionId => $question) {
+                if ((int) $question['is_required'] !== 1) {
+                    continue;
+                }
+
+                if (
+                    !$this->isQuestionVisible(
+                        $question,
+                        $finalAnswers,
+                        $questionMap
+                    )
                 ) {
                     continue;
                 }
@@ -184,39 +225,31 @@ final class ProjectQuestionnaireService
                 }
             }
 
-            // ذخیره پاسخ‌های نهایی
-            $upsertStmt = $this->db->prepare(
+            // جایگزینی کامل پاسخ‌ها در یک تراکنش
+            $deleteStmt = $this->db->prepare(
+                'DELETE FROM project_answers
+                 WHERE project_id = :project_id'
+            );
+
+            $deleteStmt->execute([
+                'project_id' => $projectId,
+            ]);
+
+            $insertStmt = $this->db->prepare(
                 'INSERT INTO project_answers
                     (project_id, question_id, answer_value)
                  VALUES
-                    (:project_id, :question_id, :answer_value)
-                 ON DUPLICATE KEY UPDATE
-                    answer_value = VALUES(answer_value)'
-            );
-
-            $deleteStmt = $this->db->prepare(
-                'DELETE FROM project_answers
-                 WHERE project_id = :project_id
-                   AND question_id = :question_id'
+                    (:project_id, :question_id, :answer_value)'
             );
 
             $savedCount = 0;
 
-            foreach ($normalizedAnswers as $questionId => $answer) {
-                if (!array_key_exists($questionId, $finalAnswers)) {
-                    $deleteStmt->execute([
-                        'project_id' => $projectId,
-                        'question_id' => $questionId,
-                    ]);
-
-                    continue;
-                }
-
-                $upsertStmt->execute([
+            foreach ($finalAnswers as $questionId => $answer) {
+                $insertStmt->execute([
                     'project_id' => $projectId,
                     'question_id' => $questionId,
                     'answer_value' => json_encode(
-                        $finalAnswers[$questionId],
+                        $answer,
                         JSON_UNESCAPED_UNICODE |
                         JSON_UNESCAPED_SLASHES |
                         JSON_THROW_ON_ERROR
@@ -224,33 +257,6 @@ final class ProjectQuestionnaireService
                 ]);
 
                 $savedCount++;
-            }
-
-            // حذف پاسخ پرسش‌هایی که دیگر فعال یا متعلق به این دسته‌بندی نیستند
-            $validIds = array_keys($questionMap);
-
-            if ($validIds === []) {
-                $cleanup = $this->db->prepare(
-                    'DELETE FROM project_answers
-                     WHERE project_id = :project_id'
-                );
-
-                $cleanup->execute([
-                    'project_id' => $projectId,
-                ]);
-            } else {
-                $placeholders = implode(',', array_fill(0, count($validIds), '?'));
-
-                $cleanup = $this->db->prepare(
-                    "DELETE FROM project_answers
-                     WHERE project_id = ?
-                       AND question_id NOT IN ($placeholders)"
-                );
-
-                $cleanup->execute([
-                    $projectId,
-                    ...$validIds,
-                ]);
             }
 
             $this->db->commit();
@@ -273,7 +279,7 @@ final class ProjectQuestionnaireService
             return null;
         }
 
-        $type = $question['question_type'];
+        $type = (string) $question['question_type'];
 
         $options = [];
 
@@ -294,7 +300,9 @@ final class ProjectQuestionnaireService
             case 'text':
             case 'textarea':
                 if (!is_string($answer) && !is_numeric($answer)) {
-                    throw new InvalidArgumentException('Invalid text answer.');
+                    throw new InvalidArgumentException(
+                        'Invalid text answer.'
+                    );
                 }
 
                 $answer = trim((string) $answer);
@@ -304,30 +312,45 @@ final class ProjectQuestionnaireService
                 }
 
                 if (mb_strlen($answer) > 10000) {
-                    throw new InvalidArgumentException('Answer is too long.');
+                    throw new InvalidArgumentException(
+                        'Answer is too long.'
+                    );
                 }
 
                 return $answer;
 
             case 'number':
                 if (
+                    (!is_string($answer) && !is_numeric($answer)) ||
                     !is_numeric($answer) ||
                     !is_finite((float) $answer)
                 ) {
-                    throw new InvalidArgumentException('Invalid number answer.');
+                    throw new InvalidArgumentException(
+                        'Invalid number answer.'
+                    );
                 }
 
                 return (string) $answer;
 
             case 'date':
                 if (!is_string($answer)) {
-                    throw new InvalidArgumentException('Invalid date answer.');
+                    throw new InvalidArgumentException(
+                        'Invalid date answer.'
+                    );
                 }
 
-                $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $answer);
+                $date = \DateTimeImmutable::createFromFormat(
+                    '!Y-m-d',
+                    $answer
+                );
 
-                if (!$date || $date->format('Y-m-d') !== $answer) {
-                    throw new InvalidArgumentException('Invalid date format.');
+                if (
+                    !$date ||
+                    $date->format('Y-m-d') !== $answer
+                ) {
+                    throw new InvalidArgumentException(
+                        'Invalid date format.'
+                    );
                 }
 
                 return $answer;
@@ -335,24 +358,36 @@ final class ProjectQuestionnaireService
             case 'radio':
             case 'select':
                 if (!is_string($answer) && !is_numeric($answer)) {
-                    throw new InvalidArgumentException('Invalid selected option.');
+                    throw new InvalidArgumentException(
+                        'Invalid selected option.'
+                    );
                 }
 
                 $answer = (string) $answer;
 
+                if ($answer === '') {
+                    return null;
+                }
+
                 if (!in_array($answer, $options, true)) {
-                    throw new InvalidArgumentException('Selected option is not allowed.');
+                    throw new InvalidArgumentException(
+                        'Selected option is not allowed.'
+                    );
                 }
 
                 return $answer;
 
             case 'checkbox':
                 if (!is_array($answer)) {
-                    throw new InvalidArgumentException('Invalid checkbox answer.');
+                    throw new InvalidArgumentException(
+                        'Invalid checkbox answer.'
+                    );
                 }
 
                 if (count($answer) > count($options)) {
-                    throw new InvalidArgumentException('Too many selected options.');
+                    throw new InvalidArgumentException(
+                        'Too many selected options.'
+                    );
                 }
 
                 $selected = [];
@@ -383,15 +418,26 @@ final class ProjectQuestionnaireService
                 return $selected === [] ? null : $selected;
 
             default:
-                throw new InvalidArgumentException('Unsupported question type.');
+                throw new InvalidArgumentException(
+                    'Unsupported question type.'
+                );
         }
     }
 
     private function isQuestionVisible(
         array $question,
         array $answers,
-        array $questionMap
+        array $questionMap,
+        array $visited = []
     ): bool {
+        $questionId = (int) $question['id'];
+
+        if (isset($visited[$questionId])) {
+            return false;
+        }
+
+        $visited[$questionId] = true;
+
         if ($question['parent_question_id'] === null) {
             return true;
         }
@@ -405,11 +451,28 @@ final class ProjectQuestionnaireService
             return false;
         }
 
+        $parent = $questionMap[$parentId];
+
+        if (
+            !$this->isQuestionVisible(
+                $parent,
+                $answers,
+                $questionMap,
+                $visited
+            )
+        ) {
+            return false;
+        }
+
         $parentAnswer = $answers[$parentId];
         $conditionValue = (string) $question['condition_value'];
 
         if (is_array($parentAnswer)) {
-            return in_array($conditionValue, $parentAnswer, true);
+            return in_array(
+                $conditionValue,
+                $parentAnswer,
+                true
+            );
         }
 
         return (string) $parentAnswer === $conditionValue;
@@ -421,7 +484,8 @@ final class ProjectQuestionnaireService
             return $answer === [];
         }
 
-        return $answer === null || trim((string) $answer) === '';
+        return $answer === null ||
+            trim((string) $answer) === '';
     }
 
     private function decodeStoredAnswer(?string $value): mixed
