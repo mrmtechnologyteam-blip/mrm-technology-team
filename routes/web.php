@@ -54,30 +54,6 @@ $router->get(
 
 /*
 |--------------------------------------------------------------------------
-| Contact
-|--------------------------------------------------------------------------
-*/
-
-$router->get(
-    '/contact',
-    function (Request $request, array $parameters): Response {
-        $controller = new ContactController($request, $parameters);
-
-        return $controller->show();
-    }
-);
-
-$router->post(
-    '/contact',
-    function (Request $request, array $parameters): Response {
-        $controller = new ContactController($request, $parameters);
-
-        return $controller->store();
-    }
-);
-
-/*
-|--------------------------------------------------------------------------
 | Customer Dashboard
 |--------------------------------------------------------------------------
 */
@@ -205,12 +181,48 @@ $router->get(
     }
 );
 
+/*
+|--------------------------------------------------------------------------
+| Admin Project Status Update
+|--------------------------------------------------------------------------
+*/
+
 $router->post(
     '/admin/projects/{id}/status',
     function (Request $request, array $parameters): Response {
         $controller = new AdminProjectsController($request, $parameters);
 
         return $controller->updateStatus();
+    }
+);
+
+/*
+|--------------------------------------------------------------------------
+| Contact Page
+|--------------------------------------------------------------------------
+*/
+
+$router->get(
+    '/contact',
+    function (Request $request, array $parameters): Response {
+        $controller = new ContactController($request, $parameters);
+
+        return $controller->show();
+    }
+);
+
+/*
+|--------------------------------------------------------------------------
+| Submit Contact Message
+|--------------------------------------------------------------------------
+*/
+
+$router->post(
+    '/contact',
+    function (Request $request, array $parameters): Response {
+        $controller = new ContactController($request, $parameters);
+
+        return $controller->store();
     }
 );
 
@@ -223,43 +235,82 @@ $router->post(
 $router->get(
     '/admin/contact-messages',
     function (Request $request, array $parameters): Response {
-        $controller = new AdminContactMessagesController($request, $parameters);
+        $controller = new AdminContactMessagesController(
+            $request,
+            $parameters
+        );
 
         return $controller->index();
     }
 );
 
+/*
+|--------------------------------------------------------------------------
+| Admin Contact Message Details
+|--------------------------------------------------------------------------
+*/
+
 $router->get(
     '/admin/contact-messages/{id}',
     function (Request $request, array $parameters): Response {
-        $controller = new AdminContactMessagesController($request, $parameters);
+        $controller = new AdminContactMessagesController(
+            $request,
+            $parameters
+        );
 
         return $controller->show();
     }
 );
 
+/*
+|--------------------------------------------------------------------------
+| Update Contact Message Status
+|--------------------------------------------------------------------------
+*/
+
 $router->post(
     '/admin/contact-messages/{id}/status',
     function (Request $request, array $parameters): Response {
-        $controller = new AdminContactMessagesController($request, $parameters);
+        $controller = new AdminContactMessagesController(
+            $request,
+            $parameters
+        );
 
         return $controller->updateStatus();
     }
 );
 
+/*
+|--------------------------------------------------------------------------
+| Update Contact Message Note
+|--------------------------------------------------------------------------
+*/
+
 $router->post(
     '/admin/contact-messages/{id}/note',
     function (Request $request, array $parameters): Response {
-        $controller = new AdminContactMessagesController($request, $parameters);
+        $controller = new AdminContactMessagesController(
+            $request,
+            $parameters
+        );
 
         return $controller->updateNote();
     }
 );
 
+/*
+|--------------------------------------------------------------------------
+| Delete Contact Message
+|--------------------------------------------------------------------------
+*/
+
 $router->post(
     '/admin/contact-messages/{id}/delete',
     function (Request $request, array $parameters): Response {
-        $controller = new AdminContactMessagesController($request, $parameters);
+        $controller = new AdminContactMessagesController(
+            $request,
+            $parameters
+        );
 
         return $controller->delete();
     }
@@ -274,16 +325,28 @@ $router->post(
 $router->get(
     '/admin/settings',
     function (Request $request, array $parameters): Response {
-        $controller = new AdminSystemSettingsController($request, $parameters);
+        $controller = new AdminSystemSettingsController(
+            $request,
+            $parameters
+        );
 
         return $controller->index();
     }
 );
 
+/*
+|--------------------------------------------------------------------------
+| Update Admin System Settings
+|--------------------------------------------------------------------------
+*/
+
 $router->post(
     '/admin/settings/update',
     function (Request $request, array $parameters): Response {
-        $controller = new AdminSystemSettingsController($request, $parameters);
+        $controller = new AdminSystemSettingsController(
+            $request,
+            $parameters
+        );
 
         return $controller->update();
     }
