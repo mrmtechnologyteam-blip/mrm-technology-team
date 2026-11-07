@@ -181,14 +181,6 @@ $userStatuses = [
             color: #fff;
         }
 
-        .section-description {
-            color: #9b8ca8;
-            font-size: 12px;
-            margin-top: -8px;
-            margin-bottom: 18px;
-            line-height: 1.8;
-        }
-
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
@@ -273,7 +265,7 @@ $userStatuses = [
         .admin-table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 700px;
+            min-width: 780px;
         }
 
         .admin-table th,
@@ -327,6 +319,24 @@ $userStatuses = [
         .badge.suspended {
             background: #542633;
             color: #ff9baa;
+        }
+
+        .details-button {
+            display: inline-block;
+            padding: 8px 13px;
+            border-radius: 7px;
+            background: rgba(155, 32, 255, .15);
+            border: 1px solid #8744b5;
+            color: #e8b8ff;
+            text-decoration: none;
+            font-size: 11px;
+            transition: .2s;
+        }
+
+        .details-button:hover {
+            background: #9b20ff;
+            border-color: #d45cff;
+            color: #fff;
         }
 
         .empty-state {
@@ -467,9 +477,7 @@ $userStatuses = [
 
             <h1>
                 خوش آمدید،
-                <span>
-                    <?= adminDashboardEscape($admin['full_name'] ?? 'مدیر سیستم') ?>
-                </span>
+                <span><?= adminDashboardEscape($admin['full_name'] ?? 'مدیر سیستم') ?></span>
             </h1>
 
             <p>
@@ -487,49 +495,37 @@ $userStatuses = [
             <div class="stat-card total">
                 <div class="stat-label">مجموع کاربران</div>
                 <div class="stat-number"><?= $userTotal ?></div>
-                <div class="stat-description">
-                    تمام حساب‌های ثبت‌شده
-                </div>
+                <div class="stat-description">تمام حساب‌های ثبت‌شده</div>
             </div>
 
             <div class="stat-card">
                 <div class="stat-label">مشتریان</div>
                 <div class="stat-number"><?= $customers ?></div>
-                <div class="stat-description">
-                    حساب‌های مشتریان
-                </div>
+                <div class="stat-description">حساب‌های مشتریان</div>
             </div>
 
             <div class="stat-card">
                 <div class="stat-label">مدیران</div>
                 <div class="stat-number"><?= $admins ?></div>
-                <div class="stat-description">
-                    حساب‌های مدیریتی
-                </div>
+                <div class="stat-description">حساب‌های مدیریتی</div>
             </div>
 
             <div class="stat-card success">
                 <div class="stat-label">کاربران فعال</div>
                 <div class="stat-number"><?= $activeUsers ?></div>
-                <div class="stat-description">
-                    حساب‌های فعال سامانه
-                </div>
+                <div class="stat-description">حساب‌های فعال سامانه</div>
             </div>
 
             <div class="stat-card warning">
                 <div class="stat-label">کاربران در انتظار</div>
                 <div class="stat-number"><?= $pendingUsers ?></div>
-                <div class="stat-description">
-                    حساب‌های نیازمند بررسی
-                </div>
+                <div class="stat-description">حساب‌های نیازمند بررسی</div>
             </div>
 
             <div class="stat-card danger">
                 <div class="stat-label">کاربران تعلیق‌شده</div>
                 <div class="stat-number"><?= $suspendedUsers ?></div>
-                <div class="stat-description">
-                    حساب‌های غیرفعال‌شده
-                </div>
+                <div class="stat-description">حساب‌های غیرفعال‌شده</div>
             </div>
 
         </section>
@@ -590,7 +586,7 @@ $userStatuses = [
 
             <div class="data-heading">
                 <h2>آخرین پروژه‌های ثبت‌شده</h2>
-                <p>پنج پروژه اخیر ثبت‌شده در سامانه</p>
+                <p>پنج پروژه اخیر ثبت‌شده در سامانه؛ برای مشاهده جزئیات هر پروژه روی دکمه مربوطه کلیک کنید.</p>
             </div>
 
             <?php if (empty($recentProjects)): ?>
@@ -613,6 +609,7 @@ $userStatuses = [
                                 <th>دسته‌بندی</th>
                                 <th>وضعیت</th>
                                 <th>تاریخ ثبت</th>
+                                <th>جزئیات</th>
                             </tr>
                         </thead>
 
@@ -626,9 +623,12 @@ $userStatuses = [
                                     'label' => 'نامشخص',
                                     'class' => '',
                                 ];
+
+                                $projectId = (int) ($project['id'] ?? 0);
                                 ?>
 
                                 <tr>
+
                                     <td>
                                         <?= adminDashboardEscape($project['project_code'] ?? '-') ?>
                                     </td>
@@ -654,6 +654,20 @@ $userStatuses = [
                                     <td>
                                         <?= adminDashboardEscape($project['submitted_at'] ?? '-') ?>
                                     </td>
+
+                                    <td>
+                                        <?php if ($projectId > 0): ?>
+                                            <a
+                                                class="details-button"
+                                                href="/projects/<?= $projectId ?>"
+                                            >
+                                                مشاهده جزئیات
+                                            </a>
+                                        <?php else: ?>
+                                            <span>—</span>
+                                        <?php endif; ?>
+                                    </td>
+
                                 </tr>
 
                             <?php endforeach; ?>
@@ -710,6 +724,7 @@ $userStatuses = [
                                 ?>
 
                                 <tr>
+
                                     <td>
                                         <?= (int) ($recentUser['id'] ?? 0) ?>
                                     </td>
@@ -731,6 +746,7 @@ $userStatuses = [
                                     <td>
                                         <?= adminDashboardEscape($recentUser['created_at'] ?? '-') ?>
                                     </td>
+
                                 </tr>
 
                             <?php endforeach; ?>
