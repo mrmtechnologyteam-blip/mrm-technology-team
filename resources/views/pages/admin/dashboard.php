@@ -129,6 +129,19 @@ $userStatuses = [
             color: #D45CFF;
         }
 
+        .admin-nav .projects-link {
+            background: rgba(155, 32, 255, .15);
+            border: 1px solid #8744b5;
+            color: #e8b8ff;
+            padding: 9px 13px;
+            border-radius: 7px;
+        }
+
+        .admin-nav .projects-link:hover {
+            background: #9b20ff;
+            color: #fff;
+        }
+
         .logout-form {
             margin: 0;
         }
@@ -448,6 +461,11 @@ $userStatuses = [
 
         <nav class="admin-nav">
             <a href="/admin/dashboard">داشبورد مدیریت</a>
+
+            <a href="/admin/projects" class="projects-link">
+                مدیریت پروژه‌ها
+            </a>
+
             <a href="/">صفحه اصلی</a>
 
             <form action="/logout" method="POST" class="logout-form">
@@ -586,7 +604,9 @@ $userStatuses = [
 
             <div class="data-heading">
                 <h2>آخرین پروژه‌های ثبت‌شده</h2>
-                <p>پنج پروژه اخیر ثبت‌شده در سامانه؛ برای مشاهده جزئیات هر پروژه روی دکمه مربوطه کلیک کنید.</p>
+                <p>
+                    پنج پروژه اخیر ثبت‌شده در سامانه؛ برای مشاهده جزئیات هر پروژه روی دکمه مربوطه کلیک کنید.
+                </p>
             </div>
 
             <?php if (empty($recentProjects)): ?>
