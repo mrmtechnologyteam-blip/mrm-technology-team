@@ -7,8 +7,11 @@ namespace App\Controllers;
 use App\Http\Controller;
 use App\Http\Request;
 use App\Http\Response;
+use App\Models\Project;
 use PDO;
 use Throwable;
+use InvalidArgumentException;
+use RuntimeException;
 
 final class AdminProjectsController extends Controller
 {
@@ -74,12 +77,13 @@ final class AdminProjectsController extends Controller
             }
 
             if (mb_strlen($search, 'UTF-8') > 200) {
-                $search = mb_substr($search, 0, 200, 'UTF-8');
+                $search = mb_substr(
+                    $search,
+                    0,
+                    200,
+                    'UTF-8'
+                );
             }
-
-            /*
-             * Build filtering conditions.
-             */
 
             $conditions = [];
             $parameters = [];
@@ -261,12 +265,137 @@ final class AdminProjectsController extends Controller
 
         } catch (Throwable $exception) {
             error_log(
-                '[AdminProjectsController] Error: ' .
+                '[AdminProjectsController] Index Error: ' .
                 $exception->getMessage()
             );
 
             return Response::serverError(
                 'دریافت فهرست پروژه‌ها با مشکل مواجه شد.'
+            );
+        }
+    }
+
+    /**
+     * Update project status by administrator.
+     */
+    public function updateStatus(): Response
+    {
+        $authResponse = $this->requireAuthentication();
+
+        if ($authResponse !== null) {
+            return $authResponse;
+        }
+
+        $adminResponse = $this->requireAdmin();
+
+        if ($adminResponse !== null) {
+            return $adminResponse;
+        }
+
+        $methodResponse = $this->requirePost();
+
+        if ($methodResponse !== null) {
+            return $methodResponse;
+        }
+
+        /*
+         * Validate CSRF token.
+         */
+
+        $csrfToken = (string) $this->post(
+            '_csrf_token',
+            ''
+        );
+
+        if (
+            !function_exists('verify_csrf_token')
+            || !verify_csrf_token($csrfToken)
+        ) {
+            return Response::forbidden(
+                'درخواست نامعتبر است. لطفاً صفحه را دوباره بارگذاری کنید.'
+            );
+        }
+
+        $projectId = filter_var(
+            $this->parameter('id'),
+            FILTER_VALIDATE_INT
+        );
+
+        if (!$projectId || $projectId <= 0) {
+            return $this->error(
+                'شناسه پروژه معتبر نیست.',
+                '/admin/projects'
+            );
+        }
+
+        $newStatus = trim(
+            (string) $this->post('status', '')
+        );
+
+        if (!in_array($newStatus, self::STATUSES, true)) {
+            return $this->error(
+                'وضعیت انتخاب‌شده معتبر نیست.',
+                '/admin/projects'
+            );
+        }
+
+        $note = trim(
+            (string) $this->post('note', '')
+        );
+
+        if (mb_strlen($note, 'UTF-8') > 2000) {
+            return $this->error(
+                'یادداشت مدیر نباید بیشتر از ۲۰۰۰ کاراکتر باشد.',
+                '/admin/projects'
+            );
+        }
+
+        try {
+            $adminId = $this->currentUserId();
+
+            if ($adminId === null) {
+                return $this->redirect('/login');
+            }
+
+            $projectModel = new Project(db());
+
+            $projectModel->updateStatus(
+                (int) $projectId,
+                $adminId,
+                $newStatus,
+                $note !== '' ? $note : null
+            );
+
+            return $this->success(
+                'وضعیت پروژه با موفقیت به‌روزرسانی شد.',
+                '/projects/' . (int) $projectId
+            );
+
+        } catch (InvalidArgumentException $exception) {
+            return $this->error(
+                'اطلاعات ارسال‌شده معتبر نیست.',
+                '/projects/' . (int) $projectId
+            );
+
+        } catch (RuntimeException $exception) {
+            error_log(
+                '[AdminProjectsController] Status Update Error: ' .
+                $exception->getMessage()
+            );
+
+            return $this->error(
+                'پروژه یافت نشد یا امکان تغییر وضعیت آن وجود ندارد.',
+                '/admin/projects'
+            );
+
+        } catch (Throwable $exception) {
+            error_log(
+                '[AdminProjectsController] Status Update Error: ' .
+                $exception->getMessage()
+            );
+
+            return Response::serverError(
+                'تغییر وضعیت پروژه با مشکل مواجه شد.'
             );
         }
     }
