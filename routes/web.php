@@ -152,6 +152,24 @@ $router->get(
 
 /*
 |--------------------------------------------------------------------------
+| Admin Project Status Update
+|--------------------------------------------------------------------------
+*/
+
+$router->post(
+    '/admin/projects/{id}/status',
+    function (Request $request, array $parameters): Response {
+        $controller = new AdminProjectsController(
+            $request,
+            $parameters
+        );
+
+        return $controller->updateStatus();
+    }
+);
+
+/*
+|--------------------------------------------------------------------------
 | Authentication
 |--------------------------------------------------------------------------
 */
