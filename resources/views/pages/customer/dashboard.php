@@ -2,9 +2,7 @@
 
 declare(strict_types=1);
 
-$appName = defined('APP_NAME')
-    ? APP_NAME
-    : 'MRM Technology Team';
+$appName = defined('APP_NAME') ? APP_NAME : 'MRM Technology Team';
 
 $user = is_array($user ?? null) ? $user : [];
 $projectStats = is_array($projectStats ?? null) ? $projectStats : [];
@@ -42,12 +40,11 @@ $accepted = (int) ($projectStats['accepted'] ?? 0);
 $completed = (int) ($projectStats['completed'] ?? 0);
 $rejected = (int) ($projectStats['rejected'] ?? 0);
 
-$csrfToken = function_exists('csrf_token')
-    ? csrf_token()
-    : '';
+$csrfToken = function_exists('csrf_token') ? csrf_token() : '';
 
 $flashMessage = $_SESSION['flash_message'] ?? null;
 unset($_SESSION['flash_message']);
+
 ?>
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -62,6 +59,10 @@ unset($_SESSION['flash_message']);
     <link rel="stylesheet" href="/assets/css/style.css">
 
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             background: #05000D;
             color: #fff;
@@ -172,13 +173,13 @@ unset($_SESSION['flash_message']);
             padding: 22px 18px;
         }
 
-        .stat-card .stat-label {
+        .stat-label {
             color: #bda9ca;
             font-size: 13px;
             margin-bottom: 13px;
         }
 
-        .stat-card .stat-number {
+        .stat-number {
             font-size: 28px;
             font-weight: bold;
             color: #D45CFF;
@@ -221,7 +222,7 @@ unset($_SESSION['flash_message']);
         .projects-table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 650px;
+            min-width: 850px;
         }
 
         .projects-table th,
@@ -259,11 +260,7 @@ unset($_SESSION['flash_message']);
             color: #9cc8ff;
         }
 
-        .status-badge.accepted {
-            background: #164b39;
-            color: #7ce5b7;
-        }
-
+        .status-badge.accepted,
         .status-badge.completed {
             background: #164b39;
             color: #7ce5b7;
@@ -274,11 +271,39 @@ unset($_SESSION['flash_message']);
             color: #ff9baa;
         }
 
+        .details-button {
+            display: inline-block;
+            padding: 8px 13px;
+            border-radius: 7px;
+            background: linear-gradient(135deg, #9b20ff, #d45cff);
+            color: #fff;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .details-button:hover {
+            opacity: .85;
+        }
+
         .empty-state {
             text-align: center;
             padding: 40px 20px;
             color: #bda9ca;
             line-height: 2;
+        }
+
+        .new-project-button {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 11px 20px;
+            background: linear-gradient(135deg, #9b20ff, #d45cff);
+            color: #fff;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: bold;
         }
 
         .profile-card {
@@ -347,7 +372,7 @@ unset($_SESSION['flash_message']);
                 padding: 17px 13px;
             }
 
-            .stat-card .stat-number {
+            .stat-number {
                 font-size: 24px;
             }
         }
@@ -367,12 +392,10 @@ unset($_SESSION['flash_message']);
         <nav class="dashboard-nav">
             <a href="/dashboard">داشبورد</a>
             <a href="/">صفحه اصلی</a>
+            <a href="/projects/create">ثبت پروژه جدید</a>
 
-            <form
-                action="/logout"
-                method="POST"
-                class="logout-form"
-            >
+            <form action="/logout" method="POST" class="logout-form">
+
                 <input
                     type="hidden"
                     name="_csrf_token"
@@ -382,6 +405,7 @@ unset($_SESSION['flash_message']);
                 <button type="submit" class="logout-button">
                     خروج از حساب
                 </button>
+
             </form>
         </nav>
 
@@ -406,8 +430,13 @@ unset($_SESSION['flash_message']);
 
             <p>
                 از این بخش می‌توانید وضعیت درخواست‌ها و پروژه‌های خود
-                را مشاهده و اطلاعات حساب کاربری‌تان را بررسی کنید.
+                را مشاهده کنید، جزئیات پروژه‌ها را بررسی نمایید
+                و اطلاعات حساب کاربری‌تان را ببینید.
             </p>
+
+            <a href="/projects/create" class="new-project-button">
+                ثبت درخواست پروژه جدید
+            </a>
 
         </section>
 
@@ -458,10 +487,17 @@ unset($_SESSION['flash_message']);
             <?php if (empty($recentProjects)): ?>
 
                 <div class="empty-state">
+
                     <p>هنوز هیچ پروژه‌ای ثبت نکرده‌اید.</p>
+
                     <p>
                         پس از ثبت درخواست پروژه، اطلاعات آن در این قسمت نمایش داده می‌شود.
                     </p>
+
+                    <a href="/projects/create" class="new-project-button">
+                        ثبت اولین پروژه
+                    </a>
+
                 </div>
 
             <?php else: ?>
@@ -477,6 +513,7 @@ unset($_SESSION['flash_message']);
                                 <th>دسته‌بندی</th>
                                 <th>وضعیت</th>
                                 <th>تاریخ ثبت</th>
+                                <th>جزئیات</th>
                             </tr>
                         </thead>
 
@@ -488,6 +525,7 @@ unset($_SESSION['flash_message']);
                                 $status = (string) ($project['status'] ?? '');
                                 $statusLabel = $statuses[$status] ?? 'نامشخص';
                                 $statusClass = $statusClasses[$status] ?? '';
+                                $projectId = (int) ($project['id'] ?? 0);
                                 ?>
 
                                 <tr>
@@ -512,6 +550,19 @@ unset($_SESSION['flash_message']);
 
                                     <td>
                                         <?= customerDashboardEscape($project['submitted_at'] ?? '-') ?>
+                                    </td>
+
+                                    <td>
+                                        <?php if ($projectId > 0): ?>
+                                            <a
+                                                href="/projects/<?= $projectId ?>"
+                                                class="details-button"
+                                            >
+                                                مشاهده جزئیات
+                                            </a>
+                                        <?php else: ?>
+                                            -
+                                        <?php endif; ?>
                                     </td>
 
                                 </tr>
