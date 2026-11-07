@@ -174,6 +174,76 @@ final class User
     }
 
     /**
+     * Update user profile information.
+     */
+    public function updateProfile(
+        int $userId,
+        string $fullName,
+        string $whatsappNumber,
+        ?string $country = null
+    ): bool {
+        if ($userId <= 0) {
+            throw new RuntimeException(
+                'شناسه کاربر معتبر نیست.'
+            );
+        }
+
+        $fullName = trim($fullName);
+        $whatsappNumber = trim($whatsappNumber);
+        $country = $country !== null
+            ? trim($country)
+            : null;
+
+        $nameLength = function_exists('mb_strlen')
+            ? mb_strlen($fullName, 'UTF-8')
+            : strlen($fullName);
+
+        if ($nameLength < 3 || $nameLength > 150) {
+            throw new RuntimeException(
+                'نام کامل باید بین ۳ تا ۱۵۰ کاراکتر باشد.'
+            );
+        }
+
+        if (
+            $whatsappNumber === '' ||
+            strlen($whatsappNumber) > 30
+        ) {
+            throw new RuntimeException(
+                'شماره واتساپ معتبر نیست.'
+            );
+        }
+
+        if ($country !== null && $country === '') {
+            $country = null;
+        }
+
+        if ($country !== null && strlen($country) > 100) {
+            throw new RuntimeException(
+                'نام کشور نباید بیشتر از ۱۰۰ کاراکتر باشد.'
+            );
+        }
+
+        $stmt = $this->db->prepare(
+            "UPDATE users
+             SET
+                full_name = :full_name,
+                whatsapp_number = :whatsapp_number,
+                country = :country
+             WHERE id = :id
+             LIMIT 1"
+        );
+
+        $stmt->execute([
+            'full_name' => $fullName,
+            'whatsapp_number' => $whatsappNumber,
+            'country' => $country,
+            'id' => $userId
+        ]);
+
+        return $stmt->rowCount() > 0;
+    }
+
+    /**
      * Update user password.
      */
     public function updatePassword(
