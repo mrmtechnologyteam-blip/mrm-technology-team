@@ -7,6 +7,7 @@ use App\Controllers\RegistrationController;
 use App\Controllers\EmailVerificationController;
 use App\Controllers\DashboardController;
 use App\Controllers\AdminDashboardController;
+use App\Controllers\AdminProjectsController;
 use App\Controllers\ForgotPasswordController;
 use App\Controllers\ProjectRequestController;
 use App\Controllers\ProjectDetailsController;
@@ -123,6 +124,24 @@ $router->get(
     '/admin/dashboard',
     function (Request $request, array $parameters): Response {
         $controller = new AdminDashboardController(
+            $request,
+            $parameters
+        );
+
+        return $controller->index();
+    }
+);
+
+/*
+|--------------------------------------------------------------------------
+| Admin Projects Management
+|--------------------------------------------------------------------------
+*/
+
+$router->get(
+    '/admin/projects',
+    function (Request $request, array $parameters): Response {
+        $controller = new AdminProjectsController(
             $request,
             $parameters
         );
