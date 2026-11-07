@@ -328,6 +328,77 @@ $currency = $project['budget_currency'] ?? '';
             overflow-wrap: anywhere;
         }
 
+        /* Admin Status Form */
+
+        .admin-status-card {
+            border-color: #69419a;
+        }
+
+        .admin-status-card p {
+            color: #bba8ce;
+            margin-top: -10px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #d8c2ed;
+            font-weight: bold;
+        }
+
+        .form-control {
+            display: block;
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 9px;
+            border: 1px solid #51366b;
+            background: #1c1229;
+            color: #fff;
+            font-family: inherit;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .form-control:focus {
+            border-color: #b77aff;
+            box-shadow: 0 0 0 2px rgba(183, 122, 255, .15);
+        }
+
+        textarea.form-control {
+            min-height: 110px;
+            resize: vertical;
+        }
+
+        .form-hint {
+            display: block;
+            margin-top: 6px;
+            color: #9985ad;
+            font-size: 12px;
+        }
+
+        .submit-button {
+            display: inline-block;
+            width: 100%;
+            padding: 13px 20px;
+            border: none;
+            border-radius: 9px;
+            background: linear-gradient(135deg, #8e43d5, #b45cff);
+            color: #fff;
+            font-family: inherit;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .submit-button:hover {
+            filter: brightness(1.12);
+        }
+
         .footer {
             text-align: center;
             color: #887698;
@@ -486,6 +557,93 @@ $currency = $project['budget_currency'] ?? '';
         </div>
 
     </section>
+
+    <!-- Admin Status Management -->
+
+    <?php if ($isAdmin): ?>
+
+        <section class="card admin-status-card">
+
+            <h2>
+                مدیریت وضعیت پروژه
+            </h2>
+
+            <p>
+                از این قسمت می‌توانید وضعیت پروژه را تغییر دهید
+                و یک یادداشت مدیریتی ثبت کنید.
+            </p>
+
+            <form
+                action="/admin/projects/<?= (int) $project['id'] ?>/status"
+                method="POST"
+            >
+
+                <input
+                    type="hidden"
+                    name="_csrf_token"
+                    value="<?= projectDetailsEscape(csrf_token()) ?>"
+                >
+
+                <div class="form-group">
+
+                    <label for="status">
+                        وضعیت جدید پروژه
+                    </label>
+
+                    <select
+                        name="status"
+                        id="status"
+                        class="form-control"
+                        required
+                    >
+
+                        <?php foreach ($statusLabels as $value => $label): ?>
+
+                            <option
+                                value="<?= projectDetailsEscape($value) ?>"
+                                <?= $status === $value ? 'selected' : '' ?>
+                            >
+                                <?= projectDetailsEscape($label) ?>
+                            </option>
+
+                        <?php endforeach; ?>
+
+                    </select>
+
+                </div>
+
+                <div class="form-group">
+
+                    <label for="note">
+                        یادداشت مدیریتی (اختیاری)
+                    </label>
+
+                    <textarea
+                        name="note"
+                        id="note"
+                        class="form-control"
+                        maxlength="2000"
+                        placeholder="توضیحات مربوط به تغییر وضعیت پروژه..."
+                    ></textarea>
+
+                    <small class="form-hint">
+                        حداکثر ۲۰۰۰ کاراکتر
+                    </small>
+
+                </div>
+
+                <button
+                    type="submit"
+                    class="submit-button"
+                >
+                    ذخیره تغییرات وضعیت پروژه
+                </button>
+
+            </form>
+
+        </section>
+
+    <?php endif; ?>
 
     <!-- Questionnaire Answers -->
 
