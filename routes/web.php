@@ -9,6 +9,7 @@ use App\Controllers\DashboardController;
 use App\Controllers\AdminDashboardController;
 use App\Controllers\ForgotPasswordController;
 use App\Controllers\ProjectRequestController;
+use App\Controllers\ProjectDetailsController;
 use App\Http\Request;
 use App\Http\Response;
 use App\Http\Router;
@@ -91,6 +92,24 @@ $router->post(
         );
 
         return $controller->store();
+    }
+);
+
+/*
+|--------------------------------------------------------------------------
+| Project Details
+|--------------------------------------------------------------------------
+*/
+
+$router->get(
+    '/projects/{id}',
+    function (Request $request, array $parameters): Response {
+        $controller = new ProjectDetailsController(
+            $request,
+            $parameters
+        );
+
+        return $controller->show();
     }
 );
 
