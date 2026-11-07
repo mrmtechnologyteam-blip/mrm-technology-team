@@ -11,6 +11,7 @@ use App\Controllers\AdminProjectsController;
 use App\Controllers\ForgotPasswordController;
 use App\Controllers\ProjectRequestController;
 use App\Controllers\ProjectDetailsController;
+use App\Controllers\AccountController;
 use App\Http\Request;
 use App\Http\Response;
 use App\Http\Router;
@@ -57,12 +58,54 @@ $router->get(
 $router->get(
     '/dashboard',
     function (Request $request, array $parameters): Response {
-        $controller = new DashboardController(
-            $request,
-            $parameters
-        );
+        $controller = new DashboardController($request, $parameters);
 
         return $controller->index();
+    }
+);
+
+/*
+|--------------------------------------------------------------------------
+| Account Profile
+|--------------------------------------------------------------------------
+*/
+
+$router->get(
+    '/account',
+    function (Request $request, array $parameters): Response {
+        $controller = new AccountController($request, $parameters);
+
+        return $controller->profile();
+    }
+);
+
+/*
+|--------------------------------------------------------------------------
+| Update Account Profile
+|--------------------------------------------------------------------------
+*/
+
+$router->post(
+    '/account/profile',
+    function (Request $request, array $parameters): Response {
+        $controller = new AccountController($request, $parameters);
+
+        return $controller->updateProfile();
+    }
+);
+
+/*
+|--------------------------------------------------------------------------
+| Change Account Password
+|--------------------------------------------------------------------------
+*/
+
+$router->post(
+    '/account/password',
+    function (Request $request, array $parameters): Response {
+        $controller = new AccountController($request, $parameters);
+
+        return $controller->changePassword();
     }
 );
 
@@ -75,10 +118,7 @@ $router->get(
 $router->get(
     '/projects/create',
     function (Request $request, array $parameters): Response {
-        $controller = new ProjectRequestController(
-            $request,
-            $parameters
-        );
+        $controller = new ProjectRequestController($request, $parameters);
 
         return $controller->create();
     }
@@ -87,10 +127,7 @@ $router->get(
 $router->post(
     '/projects',
     function (Request $request, array $parameters): Response {
-        $controller = new ProjectRequestController(
-            $request,
-            $parameters
-        );
+        $controller = new ProjectRequestController($request, $parameters);
 
         return $controller->store();
     }
@@ -105,10 +142,7 @@ $router->post(
 $router->get(
     '/projects/{id}',
     function (Request $request, array $parameters): Response {
-        $controller = new ProjectDetailsController(
-            $request,
-            $parameters
-        );
+        $controller = new ProjectDetailsController($request, $parameters);
 
         return $controller->show();
     }
@@ -123,10 +157,7 @@ $router->get(
 $router->get(
     '/admin/dashboard',
     function (Request $request, array $parameters): Response {
-        $controller = new AdminDashboardController(
-            $request,
-            $parameters
-        );
+        $controller = new AdminDashboardController($request, $parameters);
 
         return $controller->index();
     }
@@ -141,10 +172,7 @@ $router->get(
 $router->get(
     '/admin/projects',
     function (Request $request, array $parameters): Response {
-        $controller = new AdminProjectsController(
-            $request,
-            $parameters
-        );
+        $controller = new AdminProjectsController($request, $parameters);
 
         return $controller->index();
     }
@@ -159,10 +187,7 @@ $router->get(
 $router->post(
     '/admin/projects/{id}/status',
     function (Request $request, array $parameters): Response {
-        $controller = new AdminProjectsController(
-            $request,
-            $parameters
-        );
+        $controller = new AdminProjectsController($request, $parameters);
 
         return $controller->updateStatus();
     }
@@ -177,10 +202,7 @@ $router->post(
 $router->get(
     '/login',
     function (Request $request, array $parameters): Response {
-        $controller = new AuthController(
-            $request,
-            $parameters
-        );
+        $controller = new AuthController($request, $parameters);
 
         return $controller->showLogin();
     }
@@ -189,10 +211,7 @@ $router->get(
 $router->post(
     '/login',
     function (Request $request, array $parameters): Response {
-        $controller = new AuthController(
-            $request,
-            $parameters
-        );
+        $controller = new AuthController($request, $parameters);
 
         return $controller->login();
     }
@@ -201,10 +220,7 @@ $router->post(
 $router->get(
     '/register',
     function (Request $request, array $parameters): Response {
-        $controller = new RegistrationController(
-            $request,
-            $parameters
-        );
+        $controller = new RegistrationController($request, $parameters);
 
         return $controller->showRegister();
     }
@@ -213,10 +229,7 @@ $router->get(
 $router->post(
     '/register',
     function (Request $request, array $parameters): Response {
-        $controller = new RegistrationController(
-            $request,
-            $parameters
-        );
+        $controller = new RegistrationController($request, $parameters);
 
         return $controller->register();
     }
@@ -231,10 +244,7 @@ $router->post(
 $router->get(
     '/verification-required',
     function (Request $request, array $parameters): Response {
-        $controller = new EmailVerificationController(
-            $request,
-            $parameters
-        );
+        $controller = new EmailVerificationController($request, $parameters);
 
         return $controller->showRequired();
     }
@@ -243,10 +253,7 @@ $router->get(
 $router->post(
     '/resend-verification',
     function (Request $request, array $parameters): Response {
-        $controller = new EmailVerificationController(
-            $request,
-            $parameters
-        );
+        $controller = new EmailVerificationController($request, $parameters);
 
         return $controller->resendVerification();
     }
@@ -255,10 +262,7 @@ $router->post(
 $router->get(
     '/verify-email',
     function (Request $request, array $parameters): Response {
-        $controller = new EmailVerificationController(
-            $request,
-            $parameters
-        );
+        $controller = new EmailVerificationController($request, $parameters);
 
         return $controller->showConfirmation();
     }
@@ -267,10 +271,7 @@ $router->get(
 $router->post(
     '/verify-email',
     function (Request $request, array $parameters): Response {
-        $controller = new EmailVerificationController(
-            $request,
-            $parameters
-        );
+        $controller = new EmailVerificationController($request, $parameters);
 
         return $controller->verify();
     }
@@ -285,10 +286,7 @@ $router->post(
 $router->get(
     '/forgot-password',
     function (Request $request, array $parameters): Response {
-        $controller = new ForgotPasswordController(
-            $request,
-            $parameters
-        );
+        $controller = new ForgotPasswordController($request, $parameters);
 
         return $controller->showForgotForm();
     }
@@ -297,10 +295,7 @@ $router->get(
 $router->post(
     '/forgot-password',
     function (Request $request, array $parameters): Response {
-        $controller = new ForgotPasswordController(
-            $request,
-            $parameters
-        );
+        $controller = new ForgotPasswordController($request, $parameters);
 
         return $controller->sendResetLink();
     }
@@ -309,10 +304,7 @@ $router->post(
 $router->get(
     '/reset-password',
     function (Request $request, array $parameters): Response {
-        $controller = new ForgotPasswordController(
-            $request,
-            $parameters
-        );
+        $controller = new ForgotPasswordController($request, $parameters);
 
         return $controller->showResetForm();
     }
@@ -321,10 +313,7 @@ $router->get(
 $router->post(
     '/reset-password',
     function (Request $request, array $parameters): Response {
-        $controller = new ForgotPasswordController(
-            $request,
-            $parameters
-        );
+        $controller = new ForgotPasswordController($request, $parameters);
 
         return $controller->resetPassword();
     }
@@ -339,10 +328,7 @@ $router->post(
 $router->post(
     '/logout',
     function (Request $request, array $parameters): Response {
-        $controller = new AuthController(
-            $request,
-            $parameters
-        );
+        $controller = new AuthController($request, $parameters);
 
         return $controller->logout();
     }
